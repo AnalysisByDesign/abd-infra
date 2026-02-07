@@ -1,0 +1,75 @@
+#cloud-config
+# Cloud-init configuration for Docker Swarm nodes
+# Includes Docker Engine, Portainer, and related tools
+
+# Update system packages
+package_update: true
+package_upgrade: true
+
+# Install required packages
+packages:
+  - docker.io
+  - docker-compose
+  - curl
+  - wget
+  - git
+  - net-tools
+  - vim
+  - htop
+  - jq
+
+# Configure users and groups
+users:
+  - default
+
+# Configure Docker and Portainer
+runcmd:
+  # Enable and start Docker service
+  - systemctl enable docker
+  - systemctl start docker
+
+  # Add ubuntu user to docker group for rootless Docker commands
+  - usermod -aG docker ubuntu
+
+  # Create docker daemon configuration
+  - mkdir -p /etc/docker
+  - |
+    cat > /etc/docker/daemon.json <<'EOF'
+    {
+      "log-driver": "json-file",
+      "log-opts": {
+        "max-size": "10m",
+        "max-file": "3"
+      },
+      "storage-driver": "overlay2"
+    }
+    EOF
+  - systemctl daemon-reload
+  - systemctl restart docker
+
+  # Create volume for Portainer data persistence
+  - docker volume create portainer_data
+
+  # Deploy Portainer CE container for Docker management UI
+  - |
+    docker run -d \
+      --name portainer \
+      --restart=always \
+      -p 8000:8000 \
+      -p 9443:9443 \
+      -p 9000:9000 \
+      -v /var/run/docker.sock:/var/run/docker.sock \
+      -v portainer_data:/data \
+      portainer/portainer-ce:latest
+
+  # Wait for Docker to be ready and pull common images
+  - sleep 10
+  - docker pull alpine:latest
+  - docker pull nginx:latest
+  - docker pull busybox:latest
+
+# Set timezone
+timezone: UTC
+
+# Final message
+final_message: "Docker Swarm node ready with Portainer at $HOSTNAME ($PUBLIC_IPV4) - Access Portainer at https://$PUBLIC_IPV4:9443"

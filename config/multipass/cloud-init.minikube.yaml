@@ -1,0 +1,72 @@
+#cloud-config
+# Cloud-init configuration for Kubernetes nodes with Minikube
+# Installs minikube and kubectl for local Kubernetes development
+
+# Update system packages
+package_update: true
+package_upgrade: true
+
+# Install required packages
+packages:
+  - docker.io
+  - curl
+  - wget
+  - git
+  - net-tools
+  - vim
+  - htop
+  - jq
+  - apt-transport-https
+  - ca-certificates
+  - gnupg
+  - lsb-release
+
+# Configure users and groups
+users:
+  - default
+
+# Configure Docker and Minikube
+runcmd:
+  # Enable and start Docker service
+  - systemctl enable docker
+  - systemctl start docker
+
+  # Add ubuntu user to docker group for rootless Docker commands
+  - usermod -aG docker ubuntu
+
+  # Create docker daemon configuration
+  - mkdir -p /etc/docker
+  - |
+    cat > /etc/docker/daemon.json <<'EOF'
+    {
+      "log-driver": "json-file",
+      "log-opts": {
+        "max-size": "10m",
+        "max-file": "3"
+      },
+      "storage-driver": "overlay2"
+    }
+    EOF
+  - systemctl daemon-reload
+  - systemctl restart docker
+
+  # Install kubectl via snap
+  - snap install kubectl --classic
+
+  # Download and install minikube
+  - |
+    MINIKUBE_VERSION=$(curl -s https://api.github.com/repos/kubernetes/minikube/releases/latest | grep tag_name | cut -d '"' -f 4)
+    wget https://github.com/kubernetes/minikube/releases/download/${MINIKUBE_VERSION}/minikube-linux-amd64 -O /tmp/minikube
+    chmod +x /tmp/minikube
+    sudo mv /tmp/minikube /usr/local/bin/minikube
+
+  # Verify installations
+  - docker --version
+  - kubectl version --client || true
+  - minikube version
+
+# Set timezone
+timezone: UTC
+
+# Final message
+final_message: "Kubernetes node with Minikube ready at $HOSTNAME ($PUBLIC_IPV4) - Start cluster with: minikube start --driver=docker"
