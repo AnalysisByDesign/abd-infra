@@ -1,6 +1,6 @@
 # abd-infra
 
-**Local Development Infrastructure for K3s, Docker Swarm, and Kubernetes**
+**Local Development Infrastructure for K3s, Docker Swarm, and Kubernetes:**
 
 Multi-cluster local development environment using Canonical Multipass VMs. Part of the AbD Training ecosystem for labs, courses, and AI-driven infrastructure management.
 
@@ -90,7 +90,8 @@ kubectl get nodes
 ```
 
 Expected output:
-```
+
+``` txt
 NAME        STATUS   ROLES                       AGE   VERSION
 manager-1   Ready    control-plane,etcd,master   2m    v1.28.x+k3s1
 manager-2   Ready    control-plane,etcd,master   1m    v1.28.x+k3s1
@@ -134,6 +135,7 @@ system_profiler SPHardwareDataType | grep -E "Cores|Memory"
 ```
 
 **Resource Requirements:**
+
 - Default: 6 nodes × 2 CPUs × 4GB RAM = **12 CPUs, 24GB RAM**
 - Minimum: 1 server + 2 agents = **3 nodes, 6 CPUs, 12GB RAM**
 
@@ -353,53 +355,57 @@ Cloud-init files located in [`config/multipass/`](config/multipass/):
 ### High Availability Design
 
 #### K3s Cluster (Default)
-```
+
+``` txt
 ┌─────────────────────────────────────────────┐
 │           K3s HA Cluster (6 nodes)          │
 ├─────────────────────────────────────────────┤
 │  Server Nodes (Control Plane + etcd)        │
-│  ┌─────────┐ ┌─────────┐ ┌─────────┐       │
-│  │manager-1│ │manager-2│ │manager-3│       │
-│  │ K3s API │ │ K3s API │ │ K3s API │       │
-│  │  etcd   │ │  etcd   │ │  etcd   │       │
-│  └─────────┘ └─────────┘ └─────────┘       │
+│  ┌─────────┐ ┌─────────┐ ┌─────────┐        │
+│  │manager-1│ │manager-2│ │manager-3│        │
+│  │ K3s API │ │ K3s API │ │ K3s API │        │
+│  │  etcd   │ │  etcd   │ │  etcd   │        │
+│  └─────────┘ └─────────┘ └─────────┘        │
 │       ↓           ↓           ↓             │
 ├─────────────────────────────────────────────┤
 │  Agent Nodes (Workloads)                    │
-│  ┌─────────┐ ┌─────────┐ ┌─────────┐       │
-│  │worker-1 │ │worker-2 │ │worker-3 │       │
-│  │ Kubelet │ │ Kubelet │ │ Kubelet │       │
-│  └─────────┘ └─────────┘ └─────────┘       │
+│  ┌─────────┐ ┌─────────┐ ┌─────────┐        │
+│  │worker-1 │ │worker-2 │ │worker-3 │        │
+│  │ Kubelet │ │ Kubelet │ │ Kubelet │        │
+│  └─────────┘ └─────────┘ └─────────┘        │
 └─────────────────────────────────────────────┘
 ```
 
 **HA Properties:**
+
 - 3 server nodes = embedded etcd cluster (tolerate 1 failure)
 - Load balanced API access across all servers
 - Automatic leader election and failover
 
 #### Docker Swarm Cluster
-```
+
+``` txt
 ┌─────────────────────────────────────────────┐
 │      Docker Swarm Cluster (6 nodes)         │
 ├─────────────────────────────────────────────┤
 │  Manager Nodes (Raft consensus)             │
-│  ┌─────────┐ ┌─────────┐ ┌─────────┐       │
-│  │manager-1│ │manager-2│ │manager-3│       │
-│  │ Leader  │ │Reachable│ │Reachable│       │
-│  │Portainer│ │         │ │         │       │
-│  └─────────┘ └─────────┘ └─────────┘       │
+│  ┌─────────┐ ┌─────────┐ ┌─────────┐        │
+│  │manager-1│ │manager-2│ │manager-3│        │
+│  │ Leader  │ │Reachable│ │Reachable│        │
+│  │Portainer│ │         │ │         │        │
+│  └─────────┘ └─────────┘ └─────────┘        │
 │       ↓           ↓           ↓             │
 ├─────────────────────────────────────────────┤
 │  Worker Nodes (Services)                    │
-│  ┌─────────┐ ┌─────────┐ ┌─────────┐       │
-│  │worker-1 │ │worker-2 │ │worker-3 │       │
-│  │ Engine  │ │ Engine  │ │ Engine  │       │
-│  └─────────┘ └─────────┘ └─────────┘       │
+│  ┌─────────┐ ┌─────────┐ ┌─────────┐        │
+│  │worker-1 │ │worker-2 │ │worker-3 │        │
+│  │ Engine  │ │ Engine  │ │ Engine  │        │
+│  └─────────┘ └─────────┘ └─────────┘        │
 └─────────────────────────────────────────────┘
 ```
 
 **HA Properties:**
+
 - 3 manager nodes = Raft quorum (tolerate 1 failure)
 - Automatic leader election
 - Portainer UI on manager-1 (ports 9443, 9000, 8000)
@@ -431,18 +437,21 @@ Cloud-init files located in [`config/multipass/`](config/multipass/):
 Per [`PROJECT_CONTEXT.md`](PROJECT_CONTEXT.md), the next phases include:
 
 **Phase 2 - Local Development Environment:**
+
 - [ ] MariaDB deployment in K3s cluster
 - [ ] Persistent storage configuration
 - [ ] Database initialization scripts
 - [ ] Namespace and ingress setup
 
 **Phase 3 - AI Agent Implementation:**
+
 - [ ] LangGraph orchestration framework
 - [ ] CrewAI specialized workers
 - [ ] Claude API integration
 - [ ] Four agent roles: Infrastructure, Website, QA/Security, Supervisor
 
 **Phase 4 - Production Infrastructure:**
+
 - [ ] Terraform for AWS ECS Fargate
 - [ ] RDS MariaDB configuration
 - [ ] SQS queue setup
@@ -477,6 +486,7 @@ Comprehensive cheat sheets in the [`docs/`](docs/) folder:
 ### Additional Resources
 
 For specific operations, see the built-in help:
+
 ```bash
 ./scripts/multipass.sh help
 ```
@@ -504,6 +514,7 @@ All repos share common patterns for Docker, Kubernetes, and Helm deployments.
 ### Common Issues
 
 **Problem: VMs fail to start**
+
 ```bash
 # Check Multipass daemon
 multipass version
@@ -514,6 +525,7 @@ sudo launchctl load /Library/LaunchDaemons/com.canonical.multipassd.plist
 ```
 
 **Problem: K3s nodes not joining cluster**
+
 ```bash
 # Check first server status
 ./scripts/multipass.sh exec manager-1 sudo systemctl status k3s
@@ -526,6 +538,7 @@ sudo launchctl load /Library/LaunchDaemons/com.canonical.multipassd.plist
 ```
 
 **Problem: kubectl cannot connect**
+
 ```bash
 # Verify kubeconfig
 export KUBECONFIG=~/.kube/k3s-multipass-config
@@ -537,6 +550,7 @@ curl -k https://<manager-1-IP>:6443
 ```
 
 **Problem: Running out of disk space**
+
 ```bash
 # Increase disk size (before creation)
 DISK_PER_NODE=100G ./scripts/multipass.sh create
