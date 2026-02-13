@@ -323,10 +323,10 @@ Reduce cluster size:
 
 ```bash
 # Stop unused clusters
-NODE_PREFIX=old- ./multipass.sh stop all
+NODE_PREFIX=old ./multipass.sh stop all
 
 # Or destroy
-NODE_PREFIX=old- ./multipass.sh --destroy
+NODE_PREFIX=old ./multipass.sh --destroy
 
 # Create smaller cluster
 MANAGER_COUNT=1 \
@@ -352,7 +352,7 @@ multipass exec manager-1 -- df -h
 
 # Destroy unused clusters
 multipass list
-NODE_PREFIX=unused- ./multipass.sh --destroy
+NODE_PREFIX=unused ./multipass.sh --destroy
 
 # Or reduce disk per node
 DISK_PER_NODE=20G ./multipass.sh create
@@ -513,13 +513,13 @@ Always specify prefix when managing specific cluster:
 
 ```bash
 # Create
-NODE_PREFIX=k3s- ./multipass.sh create
+NODE_PREFIX=k3s ./multipass.sh create
 
 # Setup
-NODE_PREFIX=k3s- ./multipass.sh k3s-setup
+NODE_PREFIX=k3s ./multipass.sh k3s-setup
 
 # Destroy
-NODE_PREFIX=k3s- ./multipass.sh --destroy
+NODE_PREFIX=k3s ./multipass.sh --destroy
 
 # List what exists
 multipass list

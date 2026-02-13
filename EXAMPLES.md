@@ -231,22 +231,22 @@ open http://$MANAGER_IP:8080
 cd scripts
 
 # Development cluster (lightweight)
-NODE_PREFIX=dev- \
+NODE_PREFIX=dev \
 CPUS_PER_NODE=2 \
 RAM_PER_NODE=4G \
 ./multipass.sh create
 
-NODE_PREFIX=dev- ./multipass.sh k3s-setup
-NODE_PREFIX=dev- ./multipass.sh k3s-kubeconfig
+NODE_PREFIX=dev ./multipass.sh k3s-setup
+NODE_PREFIX=dev ./multipass.sh k3s-kubeconfig
 
 # Staging cluster (production-like)
-NODE_PREFIX=staging- \
+NODE_PREFIX=staging \
 CPUS_PER_NODE=4 \
 RAM_PER_NODE=8G \
 ./multipass.sh create
 
-NODE_PREFIX=staging- ./multipass.sh k3s-setup
-NODE_PREFIX=staging- ./multipass.sh k3s-kubeconfig
+NODE_PREFIX=staging ./multipass.sh k3s-setup
+NODE_PREFIX=staging ./multipass.sh k3s-kubeconfig
 
 # List all clusters
 multipass list
@@ -270,12 +270,12 @@ kubectl get nodes
 cd scripts
 
 # Create K3s cluster
-NODE_PREFIX=k3s- CLUSTER_TYPE=k3s ./multipass.sh create
-NODE_PREFIX=k3s- ./multipass.sh k3s-setup
-NODE_PREFIX=k3s- ./multipass.sh k3s-kubeconfig
+NODE_PREFIX=k3s CLUSTER_TYPE=k3s ./multipass.sh create
+NODE_PREFIX=k3s ./multipass.sh k3s-setup
+NODE_PREFIX=k3s ./multipass.sh k3s-kubeconfig
 
 # Create Docker Swarm cluster
-NODE_PREFIX=swarm- CLUSTER_TYPE=docker ./multipass.sh create
+NODE_PREFIX=swarm CLUSTER_TYPE=docker ./multipass.sh create
 # ... initialize swarm ...
 
 # List everything
@@ -421,19 +421,19 @@ watch kubectl get nodes
 cd scripts
 
 # Cluster 1 - Production
-NODE_PREFIX=prod- CPUS_PER_NODE=4 RAM_PER_NODE=8G ./multipass.sh create
-NODE_PREFIX=prod- ./multipass.sh k3s-setup
-NODE_PREFIX=prod- ./multipass.sh k3s-kubeconfig
+NODE_PREFIX=prod CPUS_PER_NODE=4 RAM_PER_NODE=8G ./multipass.sh create
+NODE_PREFIX=prod ./multipass.sh k3s-setup
+NODE_PREFIX=prod ./multipass.sh k3s-kubeconfig
 
 # Cluster 2 - Staging
-NODE_PREFIX=staging- CPUS_PER_NODE=3 RAM_PER_NODE=6G ./multipass.sh create
-NODE_PREFIX=staging- ./multipass.sh k3s-setup
-NODE_PREFIX=staging- ./multipass.sh k3s-kubeconfig
+NODE_PREFIX=staging CPUS_PER_NODE=3 RAM_PER_NODE=6G ./multipass.sh create
+NODE_PREFIX=staging ./multipass.sh k3s-setup
+NODE_PREFIX=staging ./multipass.sh k3s-kubeconfig
 
 # Cluster 3 - Development
-NODE_PREFIX=dev- CPUS_PER_NODE=2 RAM_PER_NODE=4G ./multipass.sh create
-NODE_PREFIX=dev- ./multipass.sh k3s-setup
-NODE_PREFIX=dev- ./multipass.sh k3s-kubeconfig
+NODE_PREFIX=dev CPUS_PER_NODE=2 RAM_PER_NODE=4G ./multipass.sh create
+NODE_PREFIX=dev ./multipass.sh k3s-setup
+NODE_PREFIX=dev ./multipass.sh k3s-kubeconfig
 
 # Setup kubectx for easy switching
 brew install kubectx  # macOS
@@ -538,8 +538,8 @@ kubectl create deployment app -n production --image=nginx
 
 ```bash
 # With prefix
-NODE_PREFIX=dev- ./multipass.sh --destroy
-NODE_PREFIX=staging- ./multipass.sh --destroy
+NODE_PREFIX=dev ./multipass.sh --destroy
+NODE_PREFIX=staging ./multipass.sh --destroy
 ```
 
 ### Clean Up Everything

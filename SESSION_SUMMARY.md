@@ -22,11 +22,11 @@
 
 ```bash
 # K3s cluster
-NODE_PREFIX=k3s- CLUSTER_TYPE=k3s ./multipass.sh create
-NODE_PREFIX=k3s- ./multipass.sh k3s-setup
+NODE_PREFIX=k3s CLUSTER_TYPE=k3s ./multipass.sh create
+NODE_PREFIX=k3s ./multipass.sh k3s-setup
 
 # Docker Swarm cluster (simultaneously!)
-NODE_PREFIX=docker- CLUSTER_TYPE=docker ./multipass.sh create
+NODE_PREFIX=docker CLUSTER_TYPE=docker ./multipass.sh create
 ```
 
 **Result:** Can now run unlimited parallel clusters with different prefixes
@@ -269,11 +269,11 @@ kubectl get nodes
 
 ```bash
 # K3s cluster
-NODE_PREFIX=k3s- CLUSTER_TYPE=k3s ./multipass.sh create
-NODE_PREFIX=k3s- ./multipass.sh k3s-setup
+NODE_PREFIX=k3s CLUSTER_TYPE=k3s ./multipass.sh create
+NODE_PREFIX=k3s ./multipass.sh k3s-setup
 
 # Docker Swarm cluster
-NODE_PREFIX=docker- CLUSTER_TYPE=docker ./multipass.sh create
+NODE_PREFIX=docker CLUSTER_TYPE=docker ./multipass.sh create
 ```
 
 ### Customize Resources

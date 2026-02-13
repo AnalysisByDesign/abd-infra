@@ -1,5 +1,30 @@
 # Changelog
 
+## 2026-02-13 - NODE_PREFIX Automatic Hyphen Separator
+
+### ✅ Enhancement
+
+#### NODE_PREFIX Simplified Usage
+
+- **Changed:** NODE_PREFIX now automatically adds hyphen separator
+- **Before:** `NODE_PREFIX=k3s-` (user had to include trailing hyphen)
+- **After:** `NODE_PREFIX=k3s` (hyphen added automatically)
+- **Benefit:** More intuitive usage, less prone to user error
+- **Implementation:** Added `PREFIX_WITH_SEP` variable that handles separator logic
+- **Updated:** All documentation updated to reflect new usage pattern
+
+**Migration Guide:**
+
+```bash
+# Old usage (still works if you forget to update)
+NODE_PREFIX=k3s- ./multipass.sh create  # Creates: k3s--manager-1 (double hyphen)
+
+# New usage (recommended)
+NODE_PREFIX=k3s ./multipass.sh create   # Creates: k3s-manager-1 (correct)
+```
+
+---
+
 ## 2026-02-10 - Multi-Cluster Support & Documentation Complete
 
 ### ✅ Features Added
@@ -8,7 +33,8 @@
 
 - Added `NODE_PREFIX` environment variable
 - Enables running multiple clusters simultaneously (K3s + Docker Swarm)
-- Example: `NODE_PREFIX=k3s-` creates `k3s-manager-1`, `k3s-worker-1`, etc.
+- Example: `NODE_PREFIX=k3s` creates `k3s-manager-1`, `k3s-worker-1`, etc.
+- Note: As of 2026-02-13, hyphen separator is added automatically
 
 #### 2. Resource Configuration
 
