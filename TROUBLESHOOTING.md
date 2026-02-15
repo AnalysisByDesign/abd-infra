@@ -91,14 +91,13 @@ Cloud-init files should be in `../config/multipass/`
 
 ### Node Already Exists
 
-**Problem:** `Node manager-1 already exists, skipping...`
+**Problem:** `Node {prefix}-manager-1 already exists, skipping...`
 
 **Solution:**
 
-Destroy existing nodes first:
-
 ```bash
-./multipass.sh --destroy
+# Destroy existing nodes first:
+./multipass.sh delete
 # Then recreate
 ./multipass.sh create
 ```
@@ -116,14 +115,14 @@ Destroy existing nodes first:
 Update to latest version of multipass.sh, then recreate:
 
 ```bash
-./multipass.sh --destroy
+./multipass.sh delete
 ./multipass.sh create
 ```
 
 Verify resources:
 
 ```bash
-multipass info manager-1 | grep -E "CPU|Memory"
+multipass info {prefix}-manager-1 | grep -E "CPU|Memory"
 ```
 
 ---
@@ -160,7 +159,7 @@ kill <PID>
 
 # Update to latest script (has fix)
 # Then destroy and recreate
-./multipass.sh --destroy
+./multipass.sh delete
 ./multipass.sh create
 ./multipass.sh k3s-setup
 ```
@@ -175,10 +174,10 @@ kill <PID>
 
 ```bash
 # Check service status
-./multipass.sh exec manager-1 "sudo systemctl status k3s"
+./multipass.sh exec {prefix}-manager-1 "sudo systemctl status k3s"
 
 # Check logs
-./multipass.sh exec manager-1 "sudo journalctl -xeu k3s.service -n 50"
+./multipass.sh exec {prefix}-manager-1 "sudo journalctl -xeu k3s.service -n 50"
 ```
 
 **Common Errors:**
@@ -192,12 +191,12 @@ kill <PID>
 Update to latest script (includes `--cluster-init`), destroy and recreate:
 
 ```bash
-./multipass.sh --destroy
+./multipass.sh delete
 ./multipass.sh create
 ./multipass.sh k3s-setup
 ```
 
-#### Error: "Failed to connect to manager-1:6443"
+#### Error: "Failed to connect to {prefix}-manager-1:6443"
 
 **Cause:** API server not ready or network issue
 
@@ -206,8 +205,8 @@ Update to latest script (includes `--cluster-init`), destroy and recreate:
 Wait longer, or check connectivity:
 
 ```bash
-# Get manager-1 IP
-MANAGER_IP=$(multipass info manager-1 | grep IPv4 | awk '{print $2}')
+# Get {prefix}-manager-1 IP
+MANAGER_IP=$(multipass info {prefix}-manager-1 | grep IPv4 | awk '{print $2}')
 
 # Test connectivity
 curl -k https://$MANAGER_IP:6443/ping
@@ -229,10 +228,10 @@ curl -k https://$MANAGER_IP:6443/ping
 **Common Issues:**
 
 1. **Token not retrieved**
-   - Ensure manager-1 is fully initialized before joining others
+   - Ensure {prefix}-manager-1 is fully initialized before joining others
 
 2. **Network connectivity**
-   - Test: `./multipass.sh exec manager-2 "ping manager-1"`
+   - Test: `./multipass.sh exec manager-2 "ping {prefix}-manager-1"`
 
 3. **Wrong join command**
    - Should use: `K3S_URL=https://MANAGER_IP:6443 K3S_TOKEN=xxx sh -s - server`
@@ -247,10 +246,10 @@ curl -k https://$MANAGER_IP:6443/ping
 
 ```bash
 # Manually export kubeconfig
-multipass exec manager-1 -- sudo cat /etc/rancher/k3s/k3s.yaml > ~/.kube/k3s-multipass-config
+multipass exec {prefix}-manager-1 -- sudo cat /etc/rancher/k3s/k3s.yaml > ~/.kube/k3s-multipass-config
 
-# Get manager-1 IP
-MANAGER_IP=$(multipass info manager-1 | grep IPv4 | awk '{print $2}')
+# Get {prefix}-manager-1 IP
+MANAGER_IP=$(multipass info {prefix}-manager-1 | grep IPv4 | awk '{print $2}')
 
 # Update kubeconfig server address
 sed -i '' "s/127.0.0.1/$MANAGER_IP/g" ~/.kube/k3s-multipass-config
@@ -293,11 +292,11 @@ sudo systemctl start docker
 **Solution:**
 
 ```bash
-# On manager-1, get correct join command
+# On {prefix}-manager-1, get correct join command
 sudo docker swarm join-token worker
 
-# Ensure you're using manager-1's IP (not localhost)
-MANAGER_IP=$(multipass info manager-1 | grep IPv4 | awk '{print $2}')
+# Ensure you're using {prefix}-manager-1's IP (not localhost)
+MANAGER_IP=$(multipass info {prefix}-manager-1 | grep IPv4 | awk '{print $2}')
 
 # On worker, join with correct IP
 sudo docker swarm join --token <TOKEN> $MANAGER_IP:2377
@@ -326,7 +325,7 @@ Reduce cluster size:
 NODE_PREFIX=old ./multipass.sh stop all
 
 # Or destroy
-NODE_PREFIX=old ./multipass.sh --destroy
+NODE_PREFIX=old ./multipass.sh delete
 
 # Create smaller cluster
 MANAGER_COUNT=1 \
@@ -345,10 +344,10 @@ RAM_PER_NODE=4G \
 
 ```bash
 # Check VM disk usage
-multipass exec manager-1 -- df -h
+multipass exec {prefix}-manager-1 -- df -h
 
 # Clean up Docker images (if using Docker Swarm)
-./multipass.sh exec manager-1 "sudo docker system prune -af"
+./multipass.sh exec {prefix}-manager-1 "sudo docker system prune -af"
 
 # Destroy unused clusters
 multipass list
@@ -389,7 +388,7 @@ CPUS_PER_NODE=2 ./multipass.sh create
 kubectl get svc
 
 # Get node IP
-MANAGER_IP=$(multipass info manager-1 | grep IPv4 | awk '{print $2}')
+MANAGER_IP=$(multipass info {prefix}-manager-1 | grep IPv4 | awk '{print $2}')
 
 # Test connectivity
 curl http://$MANAGER_IP:<NODE_PORT>
@@ -414,7 +413,7 @@ curl http://$MANAGER_IP:<NODE_PORT>
 multipass list  # Check IPs are in same subnet
 
 # Test from one node to another
-./multipass.sh exec manager-1 "ping worker-1"
+./multipass.sh exec {prefix}-manager-1 "ping worker-1"
 
 # Restart multipass if needed
 sudo systemctl restart snap.multipass.multipassd  # Linux
@@ -437,11 +436,11 @@ sudo systemctl restart snap.multipass.multipassd  # Linux
 multipass list
 
 # Restart VM
-multipass restart manager-1
+multipass restart {prefix}-manager-1
 
 # If still hangs, stop and start
-multipass stop manager-1
-multipass start manager-1
+multipass stop {prefix}-manager-1
+multipass start {prefix}-manager-1
 
 # Last resort: delete and recreate
 ./multipass.sh --destroy
@@ -468,10 +467,10 @@ Latest script version avoids problematic `> /dev/null` redirections.
 
 ```bash
 # Restart node
-multipass restart manager-1
+multipass restart {prefix}-manager-1
 
 # Check if it's a resource issue
-multipass info manager-1
+multipass info {prefix}-manager-1
 
 # If 1 CPU / 1GB RAM, recreate with more resources
 ./multipass.sh --destroy
@@ -553,7 +552,7 @@ sysctl -n hw.ncpu  # macOS
 multipass list
 
 # Detailed info
-multipass info manager-1
+multipass info {prefix}-manager-1
 
 # Get all IPs
 multipass list | grep -E "manager|worker" | awk '{print $1, $3}'
@@ -565,14 +564,14 @@ multipass list | grep -E "manager|worker" | awk '{print $1, $3}'
 
 ```bash
 # Service status
-./multipass.sh exec manager-1 "sudo systemctl status k3s"
+./multipass.sh exec {prefix}-manager-1 "sudo systemctl status k3s"
 
 # Logs
-./multipass.sh exec manager-1 "sudo journalctl -xeu k3s.service -n 100"
+./multipass.sh exec {prefix}-manager-1 "sudo journalctl -xeu k3s.service -n 100"
 
 # Cluster status
-./multipass.sh exec manager-1 "sudo k3s kubectl get nodes"
-./multipass.sh exec manager-1 "sudo k3s kubectl get pods -A"
+./multipass.sh exec {prefix}-manager-1 "sudo k3s kubectl get nodes"
+./multipass.sh exec {prefix}-manager-1 "sudo k3s kubectl get pods -A"
 ```
 
 ---
@@ -581,13 +580,13 @@ multipass list | grep -E "manager|worker" | awk '{print $1, $3}'
 
 ```bash
 # Node list
-./multipass.sh exec manager-1 "sudo docker node ls"
+./multipass.sh exec {prefix}-manager-1 "sudo docker node ls"
 
 # Service list
-./multipass.sh exec manager-1 "sudo docker service ls"
+./multipass.sh exec {prefix}-manager-1 "sudo docker service ls"
 
 # Inspect node
-./multipass.sh exec manager-1 "sudo docker node inspect manager-1"
+./multipass.sh exec {prefix}-manager-1 "sudo docker node inspect {prefix}-manager-1"
 ```
 
 ---
@@ -622,15 +621,15 @@ If you're still stuck:
 
 ### "Node token is empty"
 
-**Cause:** K3s not fully initialized on manager-1
+**Cause:** K3s not fully initialized on {prefix}-manager-1
 
 **Solution:**
 
-Wait longer, or check manager-1 status:
+Wait longer, or check {prefix}-manager-1 status:
 
 ```bash
-./multipass.sh exec manager-1 "sudo systemctl status k3s"
-./multipass.sh exec manager-1 "sudo cat /var/lib/rancher/k3s/server/node-token"
+./multipass.sh exec {prefix}-manager-1 "sudo systemctl status k3s"
+./multipass.sh exec {prefix}-manager-1 "sudo cat /var/lib/rancher/k3s/server/node-token"
 ```
 
 ---
