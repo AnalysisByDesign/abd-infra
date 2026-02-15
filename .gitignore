@@ -94,3 +94,6 @@ requirements.lock
 notes.md
 TODO.md
 SCRATCH.md
+
+# Claude Code Local Context Files
+PROJECT_CONTEXT.md
