@@ -290,6 +290,7 @@ ${GREEN}Commands:${NC}
     nfs-setup           Configure NFS + worker labels + demo service (Docker Swarm)
     k3s-setup           Initialize K3s cluster (server + agents)
     k3s-kubeconfig      Export K3s kubeconfig for local kubectl access
+    istio-setup         Install Istio service mesh (minimal profile)
     help                Display this help message
 
 ${GREEN}Environment Variables:${NC}
@@ -299,12 +300,14 @@ ${GREEN}Environment Variables:${NC}
                         Note: Hyphen separator is added automatically
     CLUSTER_TYPE        Type of cluster to create (default: k3s)
                         Options: docker, minikube, k3s
+                        Note: K3s clusters have Traefik disabled (use istio-setup for ingress)
     MANAGER_COUNT       Number of manager nodes (default: 3)
     WORKER_COUNT        Number of worker nodes (default: 3)
     CPUS_PER_NODE       CPU cores per node (default: 3)
     RAM_PER_NODE        RAM per node (default: 6G)
     DISK_PER_NODE       Disk size per node (default: 40G)
     IMAGE               Ubuntu image to use (default: 24.04)
+    ISTIO_VERSION       Istio version to install (default: 1.24.1)
 
 ${GREEN}Examples:${NC}
     # Create K3s cluster (3 managers, 3 workers) - DEFAULT
@@ -345,6 +348,13 @@ ${GREEN}Examples:${NC}
     # Full K3s workflow
     ./multipass.sh create && ./multipass.sh k3s-setup && ./multipass.sh k3s-kubeconfig
 
+    # Full K3s + Istio workflow
+    ./multipass.sh create && ./multipass.sh k3s-setup && ./multipass.sh istio-setup
+    ./multipass.sh k3s-kubeconfig
+
+    # Enable Istio injection for a namespace
+    multipass exec manager-1 -- sudo k3s kubectl label namespace default istio-injection=enabled
+
     # Configure NFS + labels + demo service (Docker Swarm only)
     ./multipass.sh nfs-setup
 
@@ -372,6 +382,13 @@ ${GREEN}High Availability Notes:${NC}
     ${YELLOW}Minikube:${NC}
     - Single-node by design (1 manager, workers optional)
     - Multi-node support limited to testing workload distribution
+
+${GREEN}Istio Service Mesh:${NC}
+    - Installed with minimal profile by default
+    - Includes: istiod (control plane) and istio-ingressgateway
+    - To enable sidecar injection: kubectl label namespace <ns> istio-injection=enabled
+    - Extend with addons: istioctl install --set profile=demo (includes Kiali, Jaeger, etc.)
+    - Traefik is disabled on K3s clusters to avoid conflicts with Istio
 
 EOF
 }
@@ -458,7 +475,7 @@ k3s_setup() {
     # Install K3s on first server with cluster-init for HA
     print_header "Installing K3s on $first_server (first server with embedded etcd)"
 
-    if ! multipass exec "$first_server" -- bash -c "curl -sfL https://get.k3s.io | sh -s - server --cluster-init"; then
+    if ! multipass exec "$first_server" -- bash -c "curl -sfL https://get.k3s.io | sh -s - server --cluster-init --disable traefik"; then
         print_error "Failed to install K3s on $first_server"
         return 1
     fi
@@ -502,7 +519,7 @@ k3s_setup() {
 
         print_header "Installing K3s on $node (additional server)"
 
-        if ! multipass exec "$node" -- bash -c "curl -sfL https://get.k3s.io | K3S_URL=https://$server_ip:6443 K3S_TOKEN=$node_token sh -s - server"; then
+        if ! multipass exec "$node" -- bash -c "curl -sfL https://get.k3s.io | K3S_URL=https://$server_ip:6443 K3S_TOKEN=$node_token sh -s - server --disable traefik"; then
             print_error "Failed to install K3s on $node"
             print_info "Continuing with remaining nodes..."
             continue
@@ -619,6 +636,89 @@ k3s_kubeconfig() {
     print_info "  mv ~/.kube/config.new ~/.kube/config"
 }
 
+# Install Istio service mesh
+istio_setup() {
+    local first_server="${PREFIX_WITH_SEP}manager-1"
+    local istio_version="${ISTIO_VERSION:-1.24.1}"
+
+    print_header "Installing Istio Service Mesh"
+
+    # Check if first server node exists
+    if ! multipass list | grep -q "^$first_server "; then
+        print_error "First server node ($first_server) does not exist. Run 'create' and 'k3s-setup' first."
+        return 1
+    fi
+
+    # Check if K3s is running
+    print_info "Verifying K3s cluster is ready..."
+    if ! multipass exec "$first_server" -- sudo k3s kubectl get nodes > /dev/null 2>&1; then
+        print_error "K3s cluster is not ready. Run 'k3s-setup' first."
+        return 1
+    fi
+
+    # Download and install istioctl
+    print_header "Installing istioctl CLI"
+    multipass exec "$first_server" -- bash -c "curl -L https://istio.io/downloadIstio | ISTIO_VERSION=$istio_version sh -"
+
+    # Move istioctl to PATH
+    multipass exec "$first_server" -- sudo mv "istio-$istio_version/bin/istioctl" /usr/local/bin/istioctl
+    multipass exec "$first_server" -- sudo chmod +x /usr/local/bin/istioctl
+
+    print_success "istioctl installed"
+
+    # Install Istio with minimal profile
+    print_header "Installing Istio (minimal profile)"
+    print_info "This may take a few minutes..."
+
+    if ! multipass exec "$first_server" -- sudo istioctl install --set profile=minimal -y; then
+        print_error "Failed to install Istio"
+        return 1
+    fi
+
+    print_success "Istio installed successfully"
+
+    # Wait for Istio components to be ready
+    print_info "Waiting for Istio components to be ready..."
+    sleep 10
+
+    # Verify installation
+    print_header "Verifying Istio Installation"
+
+    # Check istiod deployment
+    if multipass exec "$first_server" -- sudo k3s kubectl get deployment -n istio-system istiod 2>/dev/null | grep -q "1/1"; then
+        print_success "istiod is running"
+    else
+        print_warning "istiod may still be initializing"
+    fi
+
+    # Check ingress gateway
+    if multipass exec "$first_server" -- sudo k3s kubectl get service -n istio-system istio-ingressgateway 2>/dev/null; then
+        print_success "istio-ingressgateway service is created"
+    else
+        print_warning "istio-ingressgateway not found"
+    fi
+
+    # Display cluster status
+    print_header "Istio Components Status"
+    multipass exec "$first_server" -- sudo k3s kubectl get pods -n istio-system
+
+    print_success "Istio service mesh installation complete!"
+    print_info ""
+    print_info "Next steps:"
+    print_info "  1. Enable Istio injection for your namespace:"
+    print_info "     multipass exec $first_server -- sudo k3s kubectl label namespace default istio-injection=enabled"
+    print_info ""
+    print_info "  2. Verify Istio version:"
+    print_info "     multipass exec $first_server -- sudo istioctl version"
+    print_info ""
+    print_info "  3. Deploy a sample application:"
+    print_info "     multipass exec $first_server -- sudo k3s kubectl apply -f https://raw.githubusercontent.com/istio/istio/release-1.24/samples/bookinfo/platform/kube/bookinfo.yaml"
+    print_info ""
+    print_info "  4. Extend Istio with addons (optional):"
+    print_info "     Kiali, Jaeger, Prometheus, Grafana"
+    print_info "     See: https://istio.io/latest/docs/setup/getting-started/#dashboard"
+}
+
 # Main command handler
 main() {
     local command=${1:-help}
@@ -666,6 +766,9 @@ main() {
             ;;
         k3s-kubeconfig)
             k3s_kubeconfig
+            ;;
+        istio-setup)
+            istio_setup
             ;;
         help)
             show_help
