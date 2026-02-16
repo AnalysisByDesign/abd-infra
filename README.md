@@ -86,7 +86,7 @@ export NODE_PREFIX=k3s MANAGER_COUNT=1 WORKER_COUNT=2
 ./scripts/multipass.sh k3s-kubeconfig
 
 # Use your cluster
-export KUBECONFIG=~/.kube/{prefix}-k3s-multipass-config
+export KUBECONFIG=~/.kube/${NODE_PREFIX}-k3s-multipass-config
 kubectl get nodes
 ```
 
@@ -192,7 +192,7 @@ system_profiler SPHardwareDataType | grep -E "Cores|Memory"
 ./scripts/multipass.sh k3s-kubeconfig
 
 # 4. Verify cluster
-export KUBECONFIG=~/.kube/{prefix}-k3s-multipass-config
+export KUBECONFIG=~/.kube/${NODE_PREFIX}-k3s-multipass-config
 kubectl get nodes
 kubectl get pods -A
 ```
@@ -217,7 +217,7 @@ export KUBECONFIG=~/.kube/k3s-multipass-config
 kubectl get all -A
 
 # Via SSH to server node
-./scripts/multipass.sh shell {prefix}-manager-1
+./scripts/multipass.sh shell ${NODE_PREFIX}-manager-1
 sudo k3s kubectl get nodes
 
 # Deploy test workload

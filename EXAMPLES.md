@@ -338,7 +338,6 @@ git push
 # Create simple cluster
 export NODE_PREFIX=k3s
 ./scripts/multipass.sh create
-
 ./scripts/multipass.sh k3s-setup
 ./scripts/multipass.sh k3s-kubeconfig
 
@@ -518,6 +517,9 @@ NODE_PREFIX=staging ./scripts/multipass.sh delete
 ### Clean Up Everything
 
 ```bash
+# Reset all env variables
+unset NODE_PREFIX MANAGER_COUNT WORKER_COUNT CLUSTER_TYPE CPUS_PER_NODE RAM_PER_NODE DISK_PER_NODE KUBECONFIG
+
 # All clusters created by script
 ./scripts/multipass.sh delete
 

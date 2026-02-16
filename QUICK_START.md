@@ -80,7 +80,7 @@ After successful creation:
 
 ```bash
 # Get kubeconfig
-export KUBECONFIG=~/.kube/{prefix}-k3s-cluster-config
+export KUBECONFIG=~/.kube/${NODE_PREFIX}-k3s-cluster-config
 
 # Verify cluster
 kubectl get nodes
