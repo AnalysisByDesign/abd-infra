@@ -17,20 +17,29 @@ Common scenarios and workflows for abd-infra cluster management.
 
 ## Quick Start Examples
 
+Install the following tools and utilities;
+
+- Helm
+- skaffold (for live reload)
+- kubectx for easy switching
+
+``` bash
+brew install helm skaffold kubectx # MacOS
+```
+
 ### Scenario 1: Local K3s Development Cluster
 
 **Goal:** Create a K3s cluster for local Kubernetes development.
 
 ```bash
-cd scripts
-
 # Create and initialize cluster
-./multipass.sh create
-./multipass.sh k3s-setup
-./multipass.sh k3s-kubeconfig
+export NODE_PREFIX=k3s MANAGER_COUNT=1 WORKER_COUNT=2
+./scripts/multipass.sh create
+./scripts/multipass.sh k3s-setup
+./scripts/multipass.sh k3s-kubeconfig
 
 # Use cluster
-export KUBECONFIG=~/.kube/k3s-multipass-config
+export KUBECONFIG=~/.kube/${NODE_PREFIX}-k3s-multipass-config
 kubectl get nodes
 
 # Deploy application
@@ -39,15 +48,15 @@ kubectl expose deployment hello --port=80 --type=NodePort
 
 # Access application
 NODE_PORT=$(kubectl get svc hello -o jsonpath='{.spec.ports[0].nodePort}')
-MANAGER_IP=$(multipass info manager-1 | grep IPv4 | awk '{print $2}')
-curl http://$MANAGER_IP:$NODE_PORT
+MANAGER_IP=$(multipass info ${NODE_PREFIX}-manager-1 | grep IPv4 | awk '{print $2}')
+echo http://$MANAGER_IP:$NODE_PORT
 ```
 
 **Cleanup:**
 
 ```bash
 
-./multipass.sh --destroy
+./scripts/multipass.sh delete
 ```
 
 ---
@@ -57,41 +66,40 @@ curl http://$MANAGER_IP:$NODE_PORT
 **Goal:** Create Docker Swarm cluster for learning container orchestration.
 
 ```bash
-cd scripts
-
 # Create Swarm cluster
-CLUSTER_TYPE=docker ./multipass.sh create
+export NODE_PREFIX=dck CLUSTER_TYPE=docker MANAGER_COUNT=3 WORKER_COUNT=3
+./scripts/multipass.sh create
 
 # Initialize Swarm
-./multipass.sh exec manager-1 "sudo docker swarm init --advertise-addr \$(hostname -I | awk '{print \$1}')"
+./scripts/multipass.sh exec ${NODE_PREFIX}-manager-1 "sudo docker swarm init --advertise-addr \$(hostname -I | awk '{print \$1}')"
 
 # Get join tokens
-MANAGER_TOKEN=$(./multipass.sh exec manager-1 "sudo docker swarm join-token manager -q")
-WORKER_TOKEN=$(./multipass.sh exec manager-1 "sudo docker swarm join-token worker -q")
-MANAGER_IP=$(multipass info manager-1 | grep IPv4 | awk '{print $2}')
+MANAGER_TOKEN=$(./scripts/multipass.sh exec ${NODE_PREFIX}-manager-1 "sudo docker swarm join-token manager -q")
+WORKER_TOKEN=$(./scripts/multipass.sh exec ${NODE_PREFIX}-manager-1 "sudo docker swarm join-token worker -q")
+MANAGER_IP=$(multipass info ${NODE_PREFIX}-manager-1 | grep IPv4 | awk '{print $2}')
 
 # Join additional managers
-./multipass.sh exec manager-2 "sudo docker swarm join --token $MANAGER_TOKEN $MANAGER_IP:2377"
-./multipass.sh exec manager-3 "sudo docker swarm join --token $MANAGER_TOKEN $MANAGER_IP:2377"
+./scripts/multipass.sh exec ${NODE_PREFIX}-manager-2 "sudo docker swarm join --token $MANAGER_TOKEN $MANAGER_IP:2377"
+./scripts/multipass.sh exec ${NODE_PREFIX}-manager-3 "sudo docker swarm join --token $MANAGER_TOKEN $MANAGER_IP:2377"
 
 # Join workers
-./multipass.sh exec worker-1 "sudo docker swarm join --token $WORKER_TOKEN $MANAGER_IP:2377"
-./multipass.sh exec worker-2 "sudo docker swarm join --token $WORKER_TOKEN $MANAGER_IP:2377"
+./scripts/multipass.sh exec ${NODE_PREFIX}-worker-1 "sudo docker swarm join --token $WORKER_TOKEN $MANAGER_IP:2377"
+./scripts/multipass.sh exec ${NODE_PREFIX}-worker-2 "sudo docker swarm join --token $WORKER_TOKEN $MANAGER_IP:2377"
 
 # Verify cluster
-./multipass.sh exec manager-1 "sudo docker node ls"
+./scripts/multipass.sh exec ${NODE_PREFIX}-manager-1 "sudo docker node ls"
 
 # Deploy service
-./multipass.sh exec manager-1 "sudo docker service create --name web --replicas 5 -p 8080:80 nginx"
+./scripts/multipass.sh exec ${NODE_PREFIX}-manager-1 "sudo docker service create --name web --replicas 5 -p 8080:80 nginx"
 
 # Access service
-curl http://$MANAGER_IP:8080
+echo http://$MANAGER_IP:8080
 ```
 
 **Cleanup:**
 
 ```bash
-./multipass.sh --destroy
+./scripts/multipass.sh delete
 ```
 
 ---
@@ -103,19 +111,14 @@ curl http://$MANAGER_IP:8080
 **Goal:** Create smallest possible K3s cluster for testing.
 
 ```bash
-cd scripts
-
 # Single node cluster
-MANAGER_COUNT=1 \
-WORKER_COUNT=0 \
-CPUS_PER_NODE=2 \
-RAM_PER_NODE=4G \
-./multipass.sh create
+export NODE_PREFIX=k3s MANAGER_COUNT=1 WORKER_COUNT=0 CPUS_PER_NODE=2 RAM_PER_NODE=4G
+./scripts/multipass.sh create
 
-./multipass.sh k3s-setup
-./multipass.sh k3s-kubeconfig
+./scripts/multipass.sh k3s-setup
+./scripts/multipass.sh k3s-kubeconfig
 
-export KUBECONFIG=~/.kube/k3s-multipass-config
+export KUBECONFIG=~/.kube/${NODE_PREFIX}-k3s-multipass-config
 kubectl get nodes
 ```
 
@@ -128,26 +131,20 @@ kubectl get nodes
 **Goal:** Create production-like HA K3s cluster.
 
 ```bash
-cd scripts
-
 # 5 servers, 5 agents, high resources
-MANAGER_COUNT=5 \
-WORKER_COUNT=5 \
-CPUS_PER_NODE=4 \
-RAM_PER_NODE=8G \
-DISK_PER_NODE=100G \
-./multipass.sh create
+export NODE_PREFIX=k3s MANAGER_COUNT=5 WORKER_COUNT=5 CPUS_PER_NODE=4 RAM_PER_NODE=8G DISK_PER_NODE=100G
+./scripts/multipass.sh create
 
-./multipass.sh k3s-setup
-./multipass.sh k3s-kubeconfig
+./scripts/multipass.sh k3s-setup
+./scripts/multipass.sh k3s-kubeconfig
 
-export KUBECONFIG=~/.kube/k3s-multipass-config
+export KUBECONFIG=~/.kube/${NODE_PREFIX}-k3s-multipass-config
 
 # Verify HA etcd cluster
 kubectl -n kube-system get pods | grep etcd
 
 # Test node failure tolerance
-multipass stop manager-1
+multipass stop ${NODE_PREFIX}-manager-1
 
 # Cluster should still be functional with 4/5 servers
 kubectl get nodes
@@ -162,17 +159,13 @@ kubectl get nodes
 **Goal:** Use Helm to deploy applications.
 
 ```bash
-cd scripts
-
 # Create cluster
-./multipass.sh create
-./multipass.sh k3s-setup
-./multipass.sh k3s-kubeconfig
+export NODE_PREFIX=k3s
+./scripts/multipass.sh create
+./scripts/multipass.sh k3s-setup
+./scripts/multipass.sh k3s-kubeconfig
 
-export KUBECONFIG=~/.kube/k3s-multipass-config
-
-# Install Helm (if not installed)
-brew install helm  # macOS
+export KUBECONFIG=~/.kube/${NODE_PREFIX}-k3s-multipass-config
 
 # Add repo
 helm repo add bitnami https://charts.bitnami.com/bitnami
@@ -198,16 +191,15 @@ kubectl port-forward svc/my-release-nginx 8080:80
 **Goal:** Deploy Swarm cluster with visualization tool.
 
 ```bash
-cd scripts
-
 # Create cluster
-CLUSTER_TYPE=docker ./multipass.sh create
+export NODE_PREFIX=dck CLUSTER_TYPE=docker
+./scripts/multipass.sh create
 
 # Initialize Swarm (abbreviated - see Scenario 2 for full steps)
 # ... swarm init and join ...
 
 # Deploy visualizer
-./multipass.sh exec manager-1 "sudo docker service create \
+./scripts/multipass.sh exec ${NODE_PREFIX}-manager-1 "sudo docker service create \
   --name viz \
   --publish 8080:8080 \
   --constraint node.role==manager \
@@ -215,7 +207,7 @@ CLUSTER_TYPE=docker ./multipass.sh create
   dockersamples/visualizer"
 
 # Access visualizer
-MANAGER_IP=$(multipass info manager-1 | grep IPv4 | awk '{print $2}')
+MANAGER_IP=$(multipass info ${NODE_PREFIX}-manager-1 | grep IPv4 | awk '{print $2}')
 open http://$MANAGER_IP:8080
 ```
 
@@ -228,25 +220,17 @@ open http://$MANAGER_IP:8080
 **Goal:** Run separate dev and staging K3s clusters.
 
 ```bash
-cd scripts
-
 # Development cluster (lightweight)
-NODE_PREFIX=dev- \
-CPUS_PER_NODE=2 \
-RAM_PER_NODE=4G \
-./multipass.sh create
-
-NODE_PREFIX=dev- ./multipass.sh k3s-setup
-NODE_PREFIX=dev- ./multipass.sh k3s-kubeconfig
+export NODE_PREFIX=dev
+./scripts/multipass.sh create
+./scripts/multipass.sh k3s-setup
+./scripts/multipass.sh k3s-kubeconfig
 
 # Staging cluster (production-like)
-NODE_PREFIX=staging- \
-CPUS_PER_NODE=4 \
-RAM_PER_NODE=8G \
-./multipass.sh create
-
-NODE_PREFIX=staging- ./multipass.sh k3s-setup
-NODE_PREFIX=staging- ./multipass.sh k3s-kubeconfig
+export NODE_PREFIX=stage CPUS_PER_NODE=4 RAM_PER_NODE=8G
+./scripts/multipass.sh create
+./scripts/multipass.sh k3s-setup
+./scripts/multipass.sh k3s-kubeconfig
 
 # List all clusters
 multipass list
@@ -267,15 +251,15 @@ kubectl get nodes
 **Goal:** Learn both orchestrators simultaneously.
 
 ```bash
-cd scripts
-
 # Create K3s cluster
-NODE_PREFIX=k3s- CLUSTER_TYPE=k3s ./multipass.sh create
-NODE_PREFIX=k3s- ./multipass.sh k3s-setup
-NODE_PREFIX=k3s- ./multipass.sh k3s-kubeconfig
+export NODE_PREFIX=k3s MANAGER_COUNT=1 WORKER_COUNT=2
+./scripts/multipass.sh create
+./scripts/multipass.sh k3s-setup
+./scripts/multipass.sh k3s-kubeconfig
 
 # Create Docker Swarm cluster
-NODE_PREFIX=swarm- CLUSTER_TYPE=docker ./multipass.sh create
+export NODE_PREFIX=swarm CLUSTER_TYPE=docker MANAGER_COUNT=3 WORKER_COUNT=3
+./scripts/multipass.sh create
 # ... initialize swarm ...
 
 # List everything
@@ -287,7 +271,7 @@ export KUBECONFIG=~/.kube/k3s-k3s-multipass-config
 kubectl get nodes
 
 # Work with Swarm
-./multipass.sh shell swarm-manager-1
+./scripts/multipass.sh shell swarm-manager-1
 sudo docker node ls
 ```
 
@@ -302,17 +286,13 @@ sudo docker node ls
 **Goal:** Develop application with automatic deployment to K3s.
 
 ```bash
-cd scripts
-
 # Create cluster
-./multipass.sh create
-./multipass.sh k3s-setup
-./multipass.sh k3s-kubeconfig
+export NODE_PREFIX=k3s MANAGER_COUNT=1 WORKER_COUNT=2
+./scripts/multipass.sh create
+./scripts/multipass.sh k3s-setup
+./scripts/multipass.sh k3s-kubeconfig
 
-export KUBECONFIG=~/.kube/k3s-multipass-config
-
-# Install skaffold (for live reload)
-brew install skaffold  # macOS
+export KUBECONFIG=~/.kube/${NODE_PREFIX}-k3s-multipass-config
 
 # In your app directory with skaffold.yaml
 skaffold dev
@@ -326,14 +306,13 @@ skaffold dev
 **Goal:** Test CI/CD pipelines locally before cloud deployment.
 
 ```bash
-cd scripts
-
 # Create production-like cluster
-CPUS_PER_NODE=4 RAM_PER_NODE=8G ./multipass.sh create
-./multipass.sh k3s-setup
-./multipass.sh k3s-kubeconfig
+export NODE_PREFIX=k3s CPUS_PER_NODE=4 RAM_PER_NODE=8G
+./scripts/multipass.sh create
+./scripts/multipass.sh k3s-setup
+./scripts/multipass.sh k3s-kubeconfig
 
-export KUBECONFIG=~/.kube/k3s-multipass-config
+export KUBECONFIG=~/.kube/${NODE_PREFIX}-k3s-multipass-config
 
 # Deploy GitLab Runner
 kubectl create namespace gitlab-runner
@@ -356,25 +335,23 @@ git push
 **Goal:** Setup for teaching Kubernetes basics.
 
 ```bash
-cd scripts
-
 # Create simple cluster
-MANAGER_COUNT=1 \
-WORKER_COUNT=2 \
-./multipass.sh create
+export NODE_PREFIX=k3s
+./scripts/multipass.sh create
+./scripts/multipass.sh k3s-setup
+./scripts/multipass.sh k3s-kubeconfig
 
-./multipass.sh k3s-setup
-./multipass.sh k3s-kubeconfig
-
-export KUBECONFIG=~/.kube/k3s-multipass-config
+export KUBECONFIG=~/.kube/${NODE_PREFIX}-k3s-multipass-config
 
 # Pre-load common images
 kubectl create deployment nginx --image=nginx
 kubectl create deployment redis --image=redis
-kubectl delete deployment nginx redis
 
 # Setup is ready for students
 kubectl get nodes
+
+# Cleanup
+kubectl delete deployment nginx redis
 ```
 
 ---
@@ -384,28 +361,27 @@ kubectl get nodes
 **Goal:** Demonstrate HA concepts with failover.
 
 ```bash
-cd scripts
-
 # Create HA cluster
-MANAGER_COUNT=3 WORKER_COUNT=2 ./multipass.sh create
-./multipass.sh k3s-setup
-./multipass.sh k3s-kubeconfig
+export NODE_PREFIX=k3s MANAGER_COUNT=3 WORKER_COUNT=2
+./scripts/multipass.sh create
+./scripts/multipass.sh k3s-setup
+./scripts/multipass.sh k3s-kubeconfig
 
-export KUBECONFIG=~/.kube/k3s-multipass-config
+export KUBECONFIG=~/.kube/${NODE_PREFIX}-k3s-multipass-config
 
 # Deploy demo application
 kubectl create deployment demo --image=nginx --replicas=5
 kubectl expose deployment demo --port=80 --type=NodePort
 
 # Simulate node failure
-multipass stop manager-1
+multipass stop ${NODE_PREFIX}-manager-1
 
 # Show cluster still operational
 kubectl get nodes
 kubectl get pods
 
 # Recover node
-multipass start manager-1
+multipass start ${NODE_PREFIX}-manager-1
 
 # Show node rejoins
 watch kubectl get nodes
@@ -418,33 +394,31 @@ watch kubectl get nodes
 **Goal:** Setup for teaching multi-cluster management.
 
 ```bash
-cd scripts
-
 # Cluster 1 - Production
-NODE_PREFIX=prod- CPUS_PER_NODE=4 RAM_PER_NODE=8G ./multipass.sh create
-NODE_PREFIX=prod- ./multipass.sh k3s-setup
-NODE_PREFIX=prod- ./multipass.sh k3s-kubeconfig
+export NODE_PREFIX=prod CPUS_PER_NODE=4 RAM_PER_NODE=8G 
+./scripts/multipass.sh create
+./scripts/multipass.sh k3s-setup
+./scripts/multipass.sh k3s-kubeconfig
 
 # Cluster 2 - Staging
-NODE_PREFIX=staging- CPUS_PER_NODE=3 RAM_PER_NODE=6G ./multipass.sh create
-NODE_PREFIX=staging- ./multipass.sh k3s-setup
-NODE_PREFIX=staging- ./multipass.sh k3s-kubeconfig
+export NODE_PREFIX=staging CPUS_PER_NODE=3 RAM_PER_NODE=8G 
+./scripts/multipass.sh create
+./scripts/multipass.sh k3s-setup
+./scripts/multipass.sh k3s-kubeconfig
 
 # Cluster 3 - Development
-NODE_PREFIX=dev- CPUS_PER_NODE=2 RAM_PER_NODE=4G ./multipass.sh create
-NODE_PREFIX=dev- ./multipass.sh k3s-setup
-NODE_PREFIX=dev- ./multipass.sh k3s-kubeconfig
-
-# Setup kubectx for easy switching
-brew install kubectx  # macOS
+export NODE_PREFIX=dev CPUS_PER_NODE=2 RAM_PER_NODE=4G 
+./scripts/multipass.sh create
+./scripts/multipass.sh k3s-setup
+./scripts/multipass.sh k3s-kubeconfig
 
 # Rename contexts for clarity
-kubectl config rename-context default prod
+kubectl config rename-context default prod --kubeconfig ~/.kube/prod-k3s-multipass-config
 kubectl config rename-context default staging --kubeconfig ~/.kube/staging-k3s-multipass-config
 kubectl config rename-context default dev --kubeconfig ~/.kube/dev-k3s-multipass-config
 
 # Merge configs
-KUBECONFIG=~/.kube/k3s-multipass-config:~/.kube/staging-k3s-multipass-config:~/.kube/dev-k3s-multipass-config \
+KUBECONFIG=~/.kube/prod-k3s-multipass-config:~/.kube/staging-k3s-multipass-config:~/.kube/dev-k3s-multipass-config \
 kubectl config view --flatten > ~/.kube/merged-config
 
 export KUBECONFIG=~/.kube/merged-config
@@ -469,20 +443,19 @@ kubectl get nodes
 **Goal:** Test K3s upgrade procedure.
 
 ```bash
-cd scripts
-
 # Create cluster
-./multipass.sh create
-./multipass.sh k3s-setup
-./multipass.sh k3s-kubeconfig
+export NODE_PREFIX=k3s
+./scripts/multipass.sh create
+./scripts/multipass.sh k3s-setup
+./scripts/multipass.sh k3s-kubeconfig
 
-export KUBECONFIG=~/.kube/k3s-multipass-config
+export KUBECONFIG=~/.kube/${NODE_PREFIX}-k3s-multipass-config
 
 # Check current version
 kubectl version --short
 
-# Upgrade manager-1
-./multipass.sh exec manager-1 "sudo systemctl stop k3s && \
+# Upgrade ${NODE_PREFIX}-manager-1
+./scripts/multipass.sh exec ${NODE_PREFIX}-manager-1 "sudo systemctl stop k3s && \
   curl -sfL https://get.k3s.io | sh -s - server --cluster-init && \
   sudo systemctl restart k3s"
 
@@ -500,30 +473,29 @@ kubectl get nodes -o wide
 **Goal:** Practice backup and restore.
 
 ```bash
-cd scripts
-
 # Create cluster
-./multipass.sh create
-./multipass.sh k3s-setup
-./multipass.sh k3s-kubeconfig
+export NODE_PREFIX=k3s
+./scripts/multipass.sh create
+./scripts/multipass.sh k3s-setup
+./scripts/multipass.sh k3s-kubeconfig
 
-export KUBECONFIG=~/.kube/k3s-multipass-config
+export KUBECONFIG=~/.kube/${NODE_PREFIX}-k3s-multipass-config
 
 # Deploy applications
 kubectl create namespace production
 kubectl create deployment app -n production --image=nginx
 
 # Create etcd snapshot
-./multipass.sh exec manager-1 "sudo k3s etcd-snapshot save --name disaster-recovery"
+./scripts/multipass.sh exec ${NODE_PREFIX}-manager-1 "sudo k3s etcd-snapshot save --name disaster-recovery"
 
 # List snapshots
-./multipass.sh exec manager-1 "sudo k3s etcd-snapshot ls"
+./scripts/multipass.sh exec ${NODE_PREFIX}-manager-1 "sudo k3s etcd-snapshot ls"
 
 # Simulate disaster - delete everything
-./multipass.sh --destroy
+./scripts/multipass.sh delete
 
 # Recreate cluster
-./multipass.sh create
+./scripts/multipass.sh create
 
 # Restore from snapshot
 # (copy snapshot to new cluster and restore)
@@ -538,15 +510,18 @@ kubectl create deployment app -n production --image=nginx
 
 ```bash
 # With prefix
-NODE_PREFIX=dev- ./multipass.sh --destroy
-NODE_PREFIX=staging- ./multipass.sh --destroy
+NODE_PREFIX=dev ./scripts/multipass.sh delete
+NODE_PREFIX=staging ./scripts/multipass.sh delete
 ```
 
 ### Clean Up Everything
 
 ```bash
+# Reset all env variables
+unset NODE_PREFIX MANAGER_COUNT WORKER_COUNT CLUSTER_TYPE CPUS_PER_NODE RAM_PER_NODE DISK_PER_NODE KUBECONFIG
+
 # All clusters created by script
-./multipass.sh --destroy
+./scripts/multipass.sh delete
 
 # Nuclear option (all multipass VMs)
 multipass delete --all --purge

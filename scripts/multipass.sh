@@ -9,13 +9,15 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CONFIG_DIR="${SCRIPT_DIR}/../config/multipass"
 NODE_PREFIX=${NODE_PREFIX:-}
-MANAGER_COUNT=${MANAGER_COUNT:-3}
-WORKER_COUNT=${WORKER_COUNT:-3}
+# Automatically add hyphen separator when NODE_PREFIX is set
+PREFIX_WITH_SEP="${NODE_PREFIX:+${NODE_PREFIX}-}"
+MANAGER_COUNT=${MANAGER_COUNT:-1}
+WORKER_COUNT=${WORKER_COUNT:-2}
 CLUSTER_TYPE=${CLUSTER_TYPE:-k3s}
 IMAGE="24.04"
-CPUS_PER_NODE=${CPUS_PER_NODE:-3}
-RAM_PER_NODE=${RAM_PER_NODE:-6G}
-DISK_PER_NODE=${DISK_PER_NODE:-40G}
+CPUS_PER_NODE=${CPUS_PER_NODE:-2}
+RAM_PER_NODE=${RAM_PER_NODE:-4G}
+DISK_PER_NODE=${DISK_PER_NODE:-20G}
 
 # Set cloud-init file based on cluster type
 case "$CLUSTER_TYPE" in
@@ -67,13 +69,13 @@ print_error() {
 # Generate node names
 get_manager_names() {
     for i in $(seq 1 $MANAGER_COUNT); do
-        echo "${NODE_PREFIX}manager-$i"
+        echo "${PREFIX_WITH_SEP}manager-$i"
     done
 }
 
 get_worker_names() {
     for i in $(seq 1 $WORKER_COUNT); do
-        echo "${NODE_PREFIX}worker-$i"
+        echo "${PREFIX_WITH_SEP}worker-$i"
     done
 }
 
@@ -293,7 +295,8 @@ ${GREEN}Commands:${NC}
 ${GREEN}Environment Variables:${NC}
     NODE_PREFIX         Prefix for node names (default: none)
                         Use to run multiple clusters simultaneously
-                        Example: k3s- creates k3s-manager-1, k3s-worker-1
+                        Example: k3s creates k3s-manager-1, k3s-worker-1
+                        Note: Hyphen separator is added automatically
     CLUSTER_TYPE        Type of cluster to create (default: k3s)
                         Options: docker, minikube, k3s
     MANAGER_COUNT       Number of manager nodes (default: 3)
@@ -317,9 +320,9 @@ ${GREEN}Examples:${NC}
     MANAGER_COUNT=1 WORKER_COUNT=2 ./multipass.sh create
 
     # Run K3s and Docker Swarm clusters simultaneously with prefixes
-    NODE_PREFIX=k3s- CLUSTER_TYPE=k3s ./multipass.sh create
-    NODE_PREFIX=k3s- ./multipass.sh k3s-setup
-    NODE_PREFIX=docker- CLUSTER_TYPE=docker ./multipass.sh create
+    NODE_PREFIX=k3s CLUSTER_TYPE=k3s ./multipass.sh create
+    NODE_PREFIX=k3s ./multipass.sh k3s-setup
+    NODE_PREFIX=docker CLUSTER_TYPE=docker ./multipass.sh create
 
     # Start all nodes
     ./multipass.sh start all
@@ -346,11 +349,12 @@ ${GREEN}Examples:${NC}
     ./multipass.sh nfs-setup
 
 ${GREEN}Node Naming:${NC}
-    Manager nodes: [prefix]manager-1, [prefix]manager-2, ...
-    Worker nodes:  [prefix]worker-1, [prefix]worker-2, ...
+    Manager nodes: [prefix-]manager-1, [prefix-]manager-2, ...
+    Worker nodes:  [prefix-]worker-1, [prefix-]worker-2, ...
 
     Without prefix: manager-1, worker-1, etc.
-    With NODE_PREFIX=k3s-: k3s-manager-1, k3s-worker-1, etc.
+    With NODE_PREFIX=k3s: k3s-manager-1, k3s-worker-1, etc.
+    (Hyphen separator is added automatically)
 
 ${GREEN}High Availability Notes:${NC}
     ${YELLOW}Docker Swarm:${NC}
@@ -436,7 +440,7 @@ wait_for_k3s_api() {
 
 # Initialize K3s cluster
 k3s_setup() {
-    local first_server="${NODE_PREFIX}manager-1"
+    local first_server="${PREFIX_WITH_SEP}manager-1"
 
     print_header "Initializing K3s Cluster"
 
@@ -580,8 +584,8 @@ k3s_setup() {
 
 # Export K3s kubeconfig for local kubectl access
 k3s_kubeconfig() {
-    local first_server="${NODE_PREFIX}manager-1"
-    local kubeconfig_name="${NODE_PREFIX}k3s-multipass-config"
+    local first_server="${PREFIX_WITH_SEP}manager-1"
+    local kubeconfig_name="${PREFIX_WITH_SEP}k3s-multipass-config"
     local kubeconfig_path="${HOME}/.kube/${kubeconfig_name}"
 
     print_header "Exporting K3s Kubeconfig"

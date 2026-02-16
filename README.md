@@ -80,25 +80,59 @@ git clone <repo-url>
 cd abd-infra
 
 # Create, initialize, and configure K3s cluster
+export NODE_PREFIX=k3s MANAGER_COUNT=1 WORKER_COUNT=2
 ./scripts/multipass.sh create && \
 ./scripts/multipass.sh k3s-setup && \
 ./scripts/multipass.sh k3s-kubeconfig
 
 # Use your cluster
-export KUBECONFIG=~/.kube/k3s-multipass-config
+export KUBECONFIG=~/.kube/${NODE_PREFIX}-k3s-multipass-config
 kubectl get nodes
 ```
 
 Expected output:
 
 ``` txt
-NAME        STATUS   ROLES                       AGE   VERSION
-manager-1   Ready    control-plane,etcd,master   2m    v1.28.x+k3s1
-manager-2   Ready    control-plane,etcd,master   1m    v1.28.x+k3s1
-manager-3   Ready    control-plane,etcd,master   1m    v1.28.x+k3s1
-worker-1    Ready    <none>                      30s   v1.28.x+k3s1
-worker-2    Ready    <none>                      30s   v1.28.x+k3s1
-worker-3    Ready    <none>                      30s   v1.28.x+k3s1
+NAME            STATUS   ROLES                       AGE   VERSION
+k3s-manager-1   Ready    control-plane,etcd,master   2m    v1.28.x+k3s1
+k3s-worker-1    Ready    <none>                      30s   v1.28.x+k3s1
+k3s-worker-2    Ready    <none>                      30s   v1.28.x+k3s1
+```
+
+### 30-Second Docker Cluster
+
+```bash
+# Clone repository
+git clone <repo-url>
+cd abd-infra
+
+# Create, initialize, and configure K3s cluster
+export NODE_PREFIX=dck CLUSTER_TYPE=docker MANAGER_COUNT=3 WORKER_COUNT=3
+./scripts/multipass.sh create
+
+# 2. Get manager-1 IP for Portainer access
+./scripts/multipass.sh info dck-manager-1
+
+# 3. Initialize Docker Swarm (manual step)
+./scripts/multipass.sh shell dck-manager-1
+docker swarm init --advertise-addr <dck-manager-1-IP>
+docker swarm join-token manager  # Run on manager-2, manager-3
+docker swarm join-token worker   # Run on worker nodes
+
+# View cluster status
+./scripts/multipass.sh exec dck-manager-1 docker node ls
+```
+
+Expected output:
+
+``` txt
+ID                            HOSTNAME        STATUS    AVAILABILITY   MANAGER STATUS   ENGINE VERSION
+9bfvxnn8ucm3sxiaqs6iiukx2 *   dck-manager-1   Ready     Active         Leader           28.2.2
+w0q52h2kiwbh1lttdfovp9itj     dck-manager-2   Ready     Active         Reachable        28.2.2
+kga0iizcsnihvzzb70vkia5w9     dck-manager-3   Ready     Active         Reachable        28.2.2
+hn2s6irqkrdsofevrr2jmj1ro     dck-worker-1    Ready     Active                          28.2.2
+htlwvovqguxh9obsn51ut8i4f     dck-worker-2    Ready     Active                          28.2.2
+t95w6c6hytkqbaa2ad1k800q0     dck-worker-3    Ready     Active                          28.2.2
 ```
 
 ---
@@ -158,7 +192,7 @@ system_profiler SPHardwareDataType | grep -E "Cores|Memory"
 ./scripts/multipass.sh k3s-kubeconfig
 
 # 4. Verify cluster
-export KUBECONFIG=~/.kube/k3s-multipass-config
+export KUBECONFIG=~/.kube/${NODE_PREFIX}-k3s-multipass-config
 kubectl get nodes
 kubectl get pods -A
 ```
@@ -167,7 +201,8 @@ kubectl get pods -A
 
 ```bash
 # Single-server development cluster (saves resources)
-MANAGER_COUNT=1 WORKER_COUNT=2 ./scripts/multipass.sh create
+export NODE_PREFIX=k3s MANAGER_COUNT=1 WORKER_COUNT=2
+./scripts/multipass.sh create
 ./scripts/multipass.sh k3s-setup
 
 # Custom resources per node
@@ -182,12 +217,12 @@ export KUBECONFIG=~/.kube/k3s-multipass-config
 kubectl get all -A
 
 # Via SSH to server node
-./scripts/multipass.sh shell manager-1
+./scripts/multipass.sh shell ${NODE_PREFIX}-manager-1
 sudo k3s kubectl get nodes
 
 # Deploy test workload
-kubectl create deployment nginx --image=nginx:alpine
-kubectl expose deployment nginx --port=80 --type=NodePort
+sudo kubectl create deployment nginx --image=nginx:alpine
+sudo kubectl expose deployment nginx --port=80 --type=NodePort
 ```
 
 ---
@@ -198,14 +233,15 @@ kubectl expose deployment nginx --port=80 --type=NodePort
 
 ```bash
 # 1. Create Swarm cluster (3 managers + 3 workers)
-CLUSTER_TYPE=docker ./scripts/multipass.sh create
+export NODE_PREFIX=dck CLUSTER_TYPE=docker MANAGER_COUNT=3 WORKER_COUNT=3
+./scripts/multipass.sh create
 
 # 2. Get manager-1 IP for Portainer access
-./scripts/multipass.sh info manager-1
+./scripts/multipass.sh info dck-manager-1
 
 # 3. Initialize Docker Swarm (manual step)
-./scripts/multipass.sh shell manager-1
-docker swarm init --advertise-addr <manager-1-IP>
+./scripts/multipass.sh shell dck-manager-1
+docker swarm init --advertise-addr <dck-manager-1-IP>
 docker swarm join-token manager  # Run on manager-2, manager-3
 docker swarm join-token worker   # Run on worker nodes
 
@@ -213,24 +249,24 @@ docker swarm join-token worker   # Run on worker nodes
 ./scripts/multipass.sh nfs-setup
 
 # 5. Access Portainer UI
-# Browser: https://<manager-1-IP>:9443
+# Browser: https://<dck-manager-1-IP>:9443
 ```
 
 **Swarm Management:**
 
 ```bash
 # View cluster status
-./scripts/multipass.sh exec manager-1 docker node ls
+./scripts/multipass.sh exec dck-manager-1 docker node ls
 
 # Deploy service across workers
-./scripts/multipass.sh exec manager-1 docker service create \
+./scripts/multipass.sh exec dck-manager-1 docker service create \
   --name web \
   --replicas 3 \
   --publish 8080:80 \
   nginx:alpine
 
 # Scale service
-./scripts/multipass.sh exec manager-1 docker service scale web=6
+./scripts/multipass.sh exec dck-manager-1 docker service scale web=6
 ```
 
 ---
@@ -420,53 +456,6 @@ Cloud-init files located in [`config/multipass/`](config/multipass/):
 
 ---
 
-## Project Status
-
-### ✅ Complete (Current Phase)
-
-- Multi-cluster infrastructure management (K3s, Docker Swarm, Minikube)
-- K3s HA cluster initialization with embedded etcd
-- Kubeconfig export and local kubectl access
-- Docker Swarm with Portainer UI
-- NFS shared storage for Swarm
-- Comprehensive CLI with lifecycle management
-- Cloud-init automation for all cluster types
-
-### 🚧 In Progress / Planned
-
-Per [`PROJECT_CONTEXT.md`](PROJECT_CONTEXT.md), the next phases include:
-
-**Phase 2 - Local Development Environment:**
-
-- [ ] MariaDB deployment in K3s cluster
-- [ ] Persistent storage configuration
-- [ ] Database initialization scripts
-- [ ] Namespace and ingress setup
-
-**Phase 3 - AI Agent Implementation:**
-
-- [ ] LangGraph orchestration framework
-- [ ] CrewAI specialized workers
-- [ ] Claude API integration
-- [ ] Four agent roles: Infrastructure, Website, QA/Security, Supervisor
-
-**Phase 4 - Production Infrastructure:**
-
-- [ ] Terraform for AWS ECS Fargate
-- [ ] RDS MariaDB configuration
-- [ ] SQS queue setup
-- [ ] CI/CD pipeline
-
-### Known Limitations
-
-- **MariaDB**: Not yet integrated (planned for separate deployment repo)
-- **Ingress Controller**: Not pre-installed (install manually if needed)
-- **Monitoring**: No built-in Prometheus/Grafana (add via manifests)
-- **Service Mesh**: No Istio/Linkerd (manual installation required)
-- **Registry**: No private registry (use public or add Harbor)
-
----
-
 ## Documentation
 
 ### Reference Guides
@@ -513,7 +502,7 @@ All repos share common patterns for Docker, Kubernetes, and Helm deployments.
 
 ### Common Issues
 
-**Problem: VMs fail to start**
+**Problem: VMs fail to start:**
 
 ```bash
 # Check Multipass daemon
@@ -524,7 +513,7 @@ sudo launchctl unload /Library/LaunchDaemons/com.canonical.multipassd.plist
 sudo launchctl load /Library/LaunchDaemons/com.canonical.multipassd.plist
 ```
 
-**Problem: K3s nodes not joining cluster**
+**Problem: K3s nodes not joining cluster:**
 
 ```bash
 # Check first server status
@@ -537,7 +526,7 @@ sudo launchctl load /Library/LaunchDaemons/com.canonical.multipassd.plist
 ./scripts/multipass.sh exec manager-1 sudo ufw status
 ```
 
-**Problem: kubectl cannot connect**
+**Problem: kubectl cannot connect:**
 
 ```bash
 # Verify kubeconfig
@@ -549,7 +538,7 @@ kubectl config view
 curl -k https://<manager-1-IP>:6443
 ```
 
-**Problem: Running out of disk space**
+**Problem: Running out of disk space:**
 
 ```bash
 # Increase disk size (before creation)

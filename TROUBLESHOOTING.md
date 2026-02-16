@@ -39,7 +39,7 @@ multipass version
 
 ### Script Permission Denied
 
-**Problem:** `Permission denied: ./multipass.sh`
+**Problem:** `Permission denied: ./scripts/multipass.sh`
 
 **Solution:**
 
@@ -65,7 +65,7 @@ MANAGER_COUNT=1 \
 WORKER_COUNT=1 \
 CPUS_PER_NODE=2 \
 RAM_PER_NODE=4G \
-./multipass.sh create
+./scripts/multipass.sh create
 ```
 
 Or close other applications to free resources.
@@ -82,7 +82,7 @@ Ensure you're running from correct directory:
 
 ```bash
 cd /path/to/abd-infra/scripts
-./multipass.sh create
+./scripts/multipass.sh create
 ```
 
 Cloud-init files should be in `../config/multipass/`
@@ -91,16 +91,15 @@ Cloud-init files should be in `../config/multipass/`
 
 ### Node Already Exists
 
-**Problem:** `Node manager-1 already exists, skipping...`
+**Problem:** `Node ${NODE_PREFIX}-manager-1 already exists, skipping...`
 
 **Solution:**
 
-Destroy existing nodes first:
-
 ```bash
-./multipass.sh --destroy
+# Destroy existing nodes first:
+./scripts/multipass.sh delete
 # Then recreate
-./multipass.sh create
+./scripts/multipass.sh create
 ```
 
 ---
@@ -116,14 +115,14 @@ Destroy existing nodes first:
 Update to latest version of multipass.sh, then recreate:
 
 ```bash
-./multipass.sh --destroy
-./multipass.sh create
+./scripts/multipass.sh delete
+./scripts/multipass.sh create
 ```
 
 Verify resources:
 
 ```bash
-multipass info manager-1 | grep -E "CPU|Memory"
+multipass info ${NODE_PREFIX}-manager-1 | grep -E "CPU|Memory"
 ```
 
 ---
@@ -160,9 +159,9 @@ kill <PID>
 
 # Update to latest script (has fix)
 # Then destroy and recreate
-./multipass.sh --destroy
-./multipass.sh create
-./multipass.sh k3s-setup
+./scripts/multipass.sh delete
+./scripts/multipass.sh create
+./scripts/multipass.sh k3s-setup
 ```
 
 ---
@@ -175,10 +174,10 @@ kill <PID>
 
 ```bash
 # Check service status
-./multipass.sh exec manager-1 "sudo systemctl status k3s"
+./scripts/multipass.sh exec ${NODE_PREFIX}-manager-1 "sudo systemctl status k3s"
 
 # Check logs
-./multipass.sh exec manager-1 "sudo journalctl -xeu k3s.service -n 50"
+./scripts/multipass.sh exec ${NODE_PREFIX}-manager-1 "sudo journalctl -xeu k3s.service -n 50"
 ```
 
 **Common Errors:**
@@ -192,12 +191,12 @@ kill <PID>
 Update to latest script (includes `--cluster-init`), destroy and recreate:
 
 ```bash
-./multipass.sh --destroy
-./multipass.sh create
-./multipass.sh k3s-setup
+./scripts/multipass.sh delete
+./scripts/multipass.sh create
+./scripts/multipass.sh k3s-setup
 ```
 
-#### Error: "Failed to connect to manager-1:6443"
+#### Error: "Failed to connect to ${NODE_PREFIX}-manager-1:6443"
 
 **Cause:** API server not ready or network issue
 
@@ -206,8 +205,8 @@ Update to latest script (includes `--cluster-init`), destroy and recreate:
 Wait longer, or check connectivity:
 
 ```bash
-# Get manager-1 IP
-MANAGER_IP=$(multipass info manager-1 | grep IPv4 | awk '{print $2}')
+# Get ${NODE_PREFIX}-manager-1 IP
+MANAGER_IP=$(multipass info ${NODE_PREFIX}-manager-1 | grep IPv4 | awk '{print $2}')
 
 # Test connectivity
 curl -k https://$MANAGER_IP:6443/ping
@@ -223,16 +222,16 @@ curl -k https://$MANAGER_IP:6443/ping
 
 ```bash
 # Check logs on failing node
-./multipass.sh exec manager-2 "sudo journalctl -xeu k3s.service -n 50"
+./scripts/multipass.sh exec manager-2 "sudo journalctl -xeu k3s.service -n 50"
 ```
 
 **Common Issues:**
 
 1. **Token not retrieved**
-   - Ensure manager-1 is fully initialized before joining others
+   - Ensure ${NODE_PREFIX}-manager-1 is fully initialized before joining others
 
 2. **Network connectivity**
-   - Test: `./multipass.sh exec manager-2 "ping manager-1"`
+   - Test: `./scripts/multipass.sh exec manager-2 "ping ${NODE_PREFIX}-manager-1"`
 
 3. **Wrong join command**
    - Should use: `K3S_URL=https://MANAGER_IP:6443 K3S_TOKEN=xxx sh -s - server`
@@ -247,10 +246,10 @@ curl -k https://$MANAGER_IP:6443/ping
 
 ```bash
 # Manually export kubeconfig
-multipass exec manager-1 -- sudo cat /etc/rancher/k3s/k3s.yaml > ~/.kube/k3s-multipass-config
+multipass exec ${NODE_PREFIX}-manager-1 -- sudo cat /etc/rancher/k3s/k3s.yaml > ~/.kube/k3s-multipass-config
 
-# Get manager-1 IP
-MANAGER_IP=$(multipass info manager-1 | grep IPv4 | awk '{print $2}')
+# Get ${NODE_PREFIX}-manager-1 IP
+MANAGER_IP=$(multipass info ${NODE_PREFIX}-manager-1 | grep IPv4 | awk '{print $2}')
 
 # Update kubeconfig server address
 sed -i '' "s/127.0.0.1/$MANAGER_IP/g" ~/.kube/k3s-multipass-config
@@ -293,11 +292,11 @@ sudo systemctl start docker
 **Solution:**
 
 ```bash
-# On manager-1, get correct join command
+# On ${NODE_PREFIX}-manager-1, get correct join command
 sudo docker swarm join-token worker
 
-# Ensure you're using manager-1's IP (not localhost)
-MANAGER_IP=$(multipass info manager-1 | grep IPv4 | awk '{print $2}')
+# Ensure you're using ${NODE_PREFIX}-manager-1's IP (not localhost)
+MANAGER_IP=$(multipass info ${NODE_PREFIX}-manager-1 | grep IPv4 | awk '{print $2}')
 
 # On worker, join with correct IP
 sudo docker swarm join --token <TOKEN> $MANAGER_IP:2377
@@ -323,16 +322,16 @@ Reduce cluster size:
 
 ```bash
 # Stop unused clusters
-NODE_PREFIX=old- ./multipass.sh stop all
+NODE_PREFIX=old ./scripts/multipass.sh stop all
 
 # Or destroy
-NODE_PREFIX=old- ./multipass.sh --destroy
+NODE_PREFIX=old ./scripts/multipass.sh delete
 
 # Create smaller cluster
 MANAGER_COUNT=1 \
 WORKER_COUNT=1 \
 RAM_PER_NODE=4G \
-./multipass.sh create
+./scripts/multipass.sh create
 ```
 
 ---
@@ -345,17 +344,17 @@ RAM_PER_NODE=4G \
 
 ```bash
 # Check VM disk usage
-multipass exec manager-1 -- df -h
+multipass exec ${NODE_PREFIX}-manager-1 -- df -h
 
 # Clean up Docker images (if using Docker Swarm)
-./multipass.sh exec manager-1 "sudo docker system prune -af"
+./scripts/multipass.sh exec ${NODE_PREFIX}-manager-1 "sudo docker system prune -af"
 
 # Destroy unused clusters
 multipass list
-NODE_PREFIX=unused- ./multipass.sh --destroy
+NODE_PREFIX=unused ./scripts/multipass.sh --destroy
 
 # Or reduce disk per node
-DISK_PER_NODE=20G ./multipass.sh create
+DISK_PER_NODE=20G ./scripts/multipass.sh create
 ```
 
 ---
@@ -368,10 +367,10 @@ DISK_PER_NODE=20G ./multipass.sh create
 
 ```bash
 # Reduce CPU allocation
-CPUS_PER_NODE=2 ./multipass.sh create
+CPUS_PER_NODE=2 ./scripts/multipass.sh create
 
 # Or limit running clusters
-./multipass.sh stop workers  # Stop workers, keep managers
+./scripts/multipass.sh stop workers  # Stop workers, keep managers
 ```
 
 ---
@@ -389,7 +388,7 @@ CPUS_PER_NODE=2 ./multipass.sh create
 kubectl get svc
 
 # Get node IP
-MANAGER_IP=$(multipass info manager-1 | grep IPv4 | awk '{print $2}')
+MANAGER_IP=$(multipass info ${NODE_PREFIX}-manager-1 | grep IPv4 | awk '{print $2}')
 
 # Test connectivity
 curl http://$MANAGER_IP:<NODE_PORT>
@@ -414,7 +413,7 @@ curl http://$MANAGER_IP:<NODE_PORT>
 multipass list  # Check IPs are in same subnet
 
 # Test from one node to another
-./multipass.sh exec manager-1 "ping worker-1"
+./scripts/multipass.sh exec ${NODE_PREFIX}-manager-1 "ping worker-1"
 
 # Restart multipass if needed
 sudo systemctl restart snap.multipass.multipassd  # Linux
@@ -437,15 +436,15 @@ sudo systemctl restart snap.multipass.multipassd  # Linux
 multipass list
 
 # Restart VM
-multipass restart manager-1
+multipass restart ${NODE_PREFIX}-manager-1
 
 # If still hangs, stop and start
-multipass stop manager-1
-multipass start manager-1
+multipass stop ${NODE_PREFIX}-manager-1
+multipass start ${NODE_PREFIX}-manager-1
 
 # Last resort: delete and recreate
-./multipass.sh --destroy
-./multipass.sh create
+./scripts/multipass.sh --destroy
+./scripts/multipass.sh create
 ```
 
 **Prevention:**
@@ -468,14 +467,14 @@ Latest script version avoids problematic `> /dev/null` redirections.
 
 ```bash
 # Restart node
-multipass restart manager-1
+multipass restart ${NODE_PREFIX}-manager-1
 
 # Check if it's a resource issue
-multipass info manager-1
+multipass info ${NODE_PREFIX}-manager-1
 
 # If 1 CPU / 1GB RAM, recreate with more resources
-./multipass.sh --destroy
-CPUS_PER_NODE=4 RAM_PER_NODE=8G ./multipass.sh create
+./scripts/multipass.sh --destroy
+CPUS_PER_NODE=4 RAM_PER_NODE=8G ./scripts/multipass.sh create
 ```
 
 ---
@@ -489,7 +488,7 @@ CPUS_PER_NODE=4 RAM_PER_NODE=8G ./multipass.sh create
 Run with verbose logging:
 
 ```bash
-bash -x ./multipass.sh create
+bash -x ./scripts/multipass.sh create
 ```
 
 Check specific step manually:
@@ -513,13 +512,13 @@ Always specify prefix when managing specific cluster:
 
 ```bash
 # Create
-NODE_PREFIX=k3s- ./multipass.sh create
+NODE_PREFIX=k3s ./scripts/multipass.sh create
 
 # Setup
-NODE_PREFIX=k3s- ./multipass.sh k3s-setup
+NODE_PREFIX=k3s ./scripts/multipass.sh k3s-setup
 
 # Destroy
-NODE_PREFIX=k3s- ./multipass.sh --destroy
+NODE_PREFIX=k3s ./scripts/multipass.sh --destroy
 
 # List what exists
 multipass list
@@ -553,7 +552,7 @@ sysctl -n hw.ncpu  # macOS
 multipass list
 
 # Detailed info
-multipass info manager-1
+multipass info ${NODE_PREFIX}-manager-1
 
 # Get all IPs
 multipass list | grep -E "manager|worker" | awk '{print $1, $3}'
@@ -565,14 +564,14 @@ multipass list | grep -E "manager|worker" | awk '{print $1, $3}'
 
 ```bash
 # Service status
-./multipass.sh exec manager-1 "sudo systemctl status k3s"
+./scripts/multipass.sh exec ${NODE_PREFIX}-manager-1 "sudo systemctl status k3s"
 
 # Logs
-./multipass.sh exec manager-1 "sudo journalctl -xeu k3s.service -n 100"
+./scripts/multipass.sh exec ${NODE_PREFIX}-manager-1 "sudo journalctl -xeu k3s.service -n 100"
 
 # Cluster status
-./multipass.sh exec manager-1 "sudo k3s kubectl get nodes"
-./multipass.sh exec manager-1 "sudo k3s kubectl get pods -A"
+./scripts/multipass.sh exec ${NODE_PREFIX}-manager-1 "sudo k3s kubectl get nodes"
+./scripts/multipass.sh exec ${NODE_PREFIX}-manager-1 "sudo k3s kubectl get pods -A"
 ```
 
 ---
@@ -581,13 +580,13 @@ multipass list | grep -E "manager|worker" | awk '{print $1, $3}'
 
 ```bash
 # Node list
-./multipass.sh exec manager-1 "sudo docker node ls"
+./scripts/multipass.sh exec ${NODE_PREFIX}-manager-1 "sudo docker node ls"
 
 # Service list
-./multipass.sh exec manager-1 "sudo docker service ls"
+./scripts/multipass.sh exec ${NODE_PREFIX}-manager-1 "sudo docker service ls"
 
 # Inspect node
-./multipass.sh exec manager-1 "sudo docker node inspect manager-1"
+./scripts/multipass.sh exec ${NODE_PREFIX}-manager-1 "sudo docker node inspect ${NODE_PREFIX}-manager-1"
 ```
 
 ---
@@ -599,9 +598,9 @@ If you're still stuck:
 1. Check script version is latest
 2. Review [USAGE.md](USAGE.md) for correct syntax
 3. Check [EXAMPLES.md](EXAMPLES.md) for similar scenario
-4. Check logs: `./multipass.sh exec <node> "sudo journalctl -xeu <service>"`
+4. Check logs: `./scripts/multipass.sh exec <node> "sudo journalctl -xeu <service>"`
 5. Try minimal cluster to isolate issue
-6. Destroy and recreate with verbose logging: `bash -x ./multipass.sh create`
+6. Destroy and recreate with verbose logging: `bash -x ./scripts/multipass.sh create`
 
 ---
 
@@ -614,23 +613,23 @@ If you're still stuck:
 **Solution:**
 
 ```bash
-./multipass.sh create
-./multipass.sh k3s-setup
+./scripts/multipass.sh create
+./scripts/multipass.sh k3s-setup
 ```
 
 ---
 
 ### "Node token is empty"
 
-**Cause:** K3s not fully initialized on manager-1
+**Cause:** K3s not fully initialized on ${NODE_PREFIX}-manager-1
 
 **Solution:**
 
-Wait longer, or check manager-1 status:
+Wait longer, or check ${NODE_PREFIX}-manager-1 status:
 
 ```bash
-./multipass.sh exec manager-1 "sudo systemctl status k3s"
-./multipass.sh exec manager-1 "sudo cat /var/lib/rancher/k3s/server/node-token"
+./scripts/multipass.sh exec ${NODE_PREFIX}-manager-1 "sudo systemctl status k3s"
+./scripts/multipass.sh exec ${NODE_PREFIX}-manager-1 "sudo cat /var/lib/rancher/k3s/server/node-token"
 ```
 
 ---
@@ -643,7 +642,7 @@ Wait longer, or check manager-1 status:
 
 ```bash
 cd /path/to/abd-infra/scripts
-./multipass.sh create
+./scripts/multipass.sh create
 ```
 
 ---
@@ -653,6 +652,9 @@ cd /path/to/abd-infra/scripts
 When all else fails:
 
 ```bash
+# Reset all env variables
+unset NODE_PREFIX MANAGER_COUNT WORKER_COUNT CLUSTER_TYPE CPUS_PER_NODE RAM_PER_NODE DISK_PER_NODE KUBECONFIG
+
 # Nuclear option - delete ALL multipass VMs
 multipass delete --all
 multipass purge
@@ -662,8 +664,8 @@ multipass list
 
 # Start fresh
 cd /path/to/abd-infra/scripts
-./multipass.sh create
-./multipass.sh k3s-setup
+./scripts/multipass.sh create
+./scripts/multipass.sh k3s-setup
 ```
 
 ---
