@@ -82,8 +82,8 @@ cd abd-infra
 # Create, initialize, and configure K3s cluster
 export NODE_PREFIX=k3s MANAGER_COUNT=1 WORKER_COUNT=2
 ./scripts/multipass.sh create && \
-./scripts/multipass.sh k3s-setup && \
-./scripts/multipass.sh k3s-kubeconfig
+./scripts/k3s.sh setup && \
+./scripts/k3s.sh kubeconfig
 
 # Use your cluster
 export KUBECONFIG=~/.kube/${NODE_PREFIX}-k3s-multipass-config
@@ -154,7 +154,7 @@ multipass version
 ```bash
 git clone <repo-url>
 cd abd-infra
-chmod +x scripts/multipass.sh
+chmod +x scripts/*.sh
 ```
 
 ### Verify Prerequisites
@@ -186,10 +186,10 @@ system_profiler SPHardwareDataType | grep -E "Cores|Memory"
 ./scripts/multipass.sh create
 
 # 2. Install and configure K3s cluster
-./scripts/multipass.sh k3s-setup
+./scripts/k3s.sh setup
 
 # 3. Export kubeconfig for local access
-./scripts/multipass.sh k3s-kubeconfig
+./scripts/k3s.sh kubeconfig
 
 # 4. Verify cluster
 export KUBECONFIG=~/.kube/${NODE_PREFIX}-k3s-multipass-config
@@ -203,7 +203,7 @@ kubectl get pods -A
 # Single-server development cluster (saves resources)
 export NODE_PREFIX=k3s MANAGER_COUNT=1 WORKER_COUNT=2
 ./scripts/multipass.sh create
-./scripts/multipass.sh k3s-setup
+./scripts/k3s.sh setup
 
 # Custom resources per node
 CPUS_PER_NODE=1 RAM_PER_NODE=2G ./scripts/multipass.sh create
@@ -246,7 +246,7 @@ docker swarm join-token manager  # Run on manager-2, manager-3
 docker swarm join-token worker   # Run on worker nodes
 
 # 4. Optional: Configure NFS and labels
-./scripts/multipass.sh nfs-setup
+./scripts/docker-swarm.sh nfs-setup
 
 # 5. Access Portainer UI
 # Browser: https://<dck-manager-1-IP>:9443
@@ -312,10 +312,13 @@ minikube kubectl -- get nodes
 
 ```bash
 # Initialize K3s cluster (after creating nodes)
-./scripts/multipass.sh k3s-setup
+./scripts/k3s.sh setup
 
 # Export kubeconfig for kubectl access
-./scripts/multipass.sh k3s-kubeconfig
+./scripts/k3s.sh kubeconfig
+
+# Install Istio service mesh + Gateway API
+./scripts/k3s.sh istio-setup
 
 # Verify cluster status
 export KUBECONFIG=~/.kube/k3s-multipass-config
@@ -326,7 +329,7 @@ kubectl get nodes
 
 ```bash
 # Configure NFS + node labels + demo service
-./scripts/multipass.sh nfs-setup
+./scripts/docker-swarm.sh nfs-setup
 ```
 
 ### Node Management
@@ -353,6 +356,9 @@ kubectl get nodes
 ```bash
 # Display full help with examples
 ./scripts/multipass.sh help
+./scripts/k3s.sh help
+./scripts/docker-swarm.sh help
+./scripts/minikube.sh help
 ```
 
 ---
@@ -364,17 +370,19 @@ kubectl get nodes
 | Variable | Default | Description | Example |
 |----------|---------|-------------|---------|
 | `CLUSTER_TYPE` | `k3s` | Cluster type: k3s, docker, minikube | `CLUSTER_TYPE=docker` |
-| `MANAGER_COUNT` | `3` | Number of manager/server nodes | `MANAGER_COUNT=5` |
-| `WORKER_COUNT` | `3` | Number of worker/agent nodes | `WORKER_COUNT=2` |
+| `MANAGER_COUNT` | `1` | Number of manager/server nodes | `MANAGER_COUNT=3` |
+| `WORKER_COUNT` | `2` | Number of worker/agent nodes | `WORKER_COUNT=3` |
 | `CPUS_PER_NODE` | `2` | CPU cores per node | `CPUS_PER_NODE=4` |
 | `RAM_PER_NODE` | `4G` | RAM per node | `RAM_PER_NODE=8G` |
-| `DISK_PER_NODE` | `40G` | Disk size per node | `DISK_PER_NODE=100G` |
+| `DISK_PER_NODE` | `20G` | Disk size per node | `DISK_PER_NODE=100G` |
 | `IMAGE` | `24.04` | Ubuntu image version | `IMAGE=22.04` |
 
 ### Node Naming Convention
 
-- **Manager/Server nodes**: `manager-1`, `manager-2`, `manager-3`, ...
-- **Worker/Agent nodes**: `worker-1`, `worker-2`, `worker-3`, ...
+- **Without prefix**: `manager-1`, `worker-1`, etc.
+- **With `NODE_PREFIX=k3s`**: `k3s-manager-1`, `k3s-worker-1`, etc. (hyphen added automatically)
+
+> **Note:** The `NODE_PREFIX` value must be consistent across `multipass.sh`, `k3s.sh`, and `docker-swarm.sh` calls for the same cluster.
 
 ### Cloud-Init Configurations
 
@@ -477,7 +485,10 @@ Comprehensive cheat sheets in the [`docs/`](docs/) folder:
 For specific operations, see the built-in help:
 
 ```bash
-./scripts/multipass.sh help
+./scripts/multipass.sh help       # VM lifecycle
+./scripts/k3s.sh help             # K3s + Istio
+./scripts/docker-swarm.sh help    # Docker Swarm
+./scripts/minikube.sh help        # Minikube
 ```
 
 ---
@@ -586,8 +597,8 @@ GPL-3.0 - See [LICENSE](LICENSE) file for details.
 ```bash
 # CREATE CLUSTER
 ./scripts/multipass.sh create
-./scripts/multipass.sh k3s-setup
-./scripts/multipass.sh k3s-kubeconfig
+./scripts/k3s.sh setup
+./scripts/k3s.sh kubeconfig
 
 # USE CLUSTER
 export KUBECONFIG=~/.kube/k3s-multipass-config

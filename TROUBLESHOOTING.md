@@ -44,7 +44,7 @@ multipass version
 **Solution:**
 
 ```bash
-chmod +x scripts/multipass.sh
+chmod +x scripts/*.sh
 ```
 
 ---
@@ -161,7 +161,7 @@ kill <PID>
 # Then destroy and recreate
 ./scripts/multipass.sh delete
 ./scripts/multipass.sh create
-./scripts/multipass.sh k3s-setup
+./scripts/k3s.sh setup
 ```
 
 ---
@@ -193,7 +193,7 @@ Update to latest script (includes `--cluster-init`), destroy and recreate:
 ```bash
 ./scripts/multipass.sh delete
 ./scripts/multipass.sh create
-./scripts/multipass.sh k3s-setup
+./scripts/k3s.sh setup
 ```
 
 #### Error: "Failed to connect to ${NODE_PREFIX}-manager-1:6443"
@@ -271,12 +271,13 @@ kubectl get nodes
 
 1. **Multiple network interfaces**
 
-```bash
-# Specify advertise address explicitly
-sudo docker swarm init --advertise-addr $(hostname -I | awk '{print $1}')
-```
+   ```bash
+   # Get manager IP from Mac host, then pass it explicitly
+   MANAGER_IP=$(multipass info ${NODE_PREFIX}-manager-1 | grep IPv4 | awk '{print $2}')
+   ./scripts/multipass.sh exec ${NODE_PREFIX}-manager-1 "sudo docker swarm init --advertise-addr $MANAGER_IP"
+   ```
 
-2. **Docker not running**
+1. **Docker not running**
 
 ```bash
 sudo systemctl status docker
@@ -351,7 +352,7 @@ multipass exec ${NODE_PREFIX}-manager-1 -- df -h
 
 # Destroy unused clusters
 multipass list
-NODE_PREFIX=unused ./scripts/multipass.sh --destroy
+NODE_PREFIX=unused ./scripts/multipass.sh delete
 
 # Or reduce disk per node
 DISK_PER_NODE=20G ./scripts/multipass.sh create
@@ -443,7 +444,7 @@ multipass stop ${NODE_PREFIX}-manager-1
 multipass start ${NODE_PREFIX}-manager-1
 
 # Last resort: delete and recreate
-./scripts/multipass.sh --destroy
+./scripts/multipass.sh delete
 ./scripts/multipass.sh create
 ```
 
@@ -473,7 +474,7 @@ multipass restart ${NODE_PREFIX}-manager-1
 multipass info ${NODE_PREFIX}-manager-1
 
 # If 1 CPU / 1GB RAM, recreate with more resources
-./scripts/multipass.sh --destroy
+./scripts/multipass.sh delete
 CPUS_PER_NODE=4 RAM_PER_NODE=8G ./scripts/multipass.sh create
 ```
 
@@ -515,10 +516,10 @@ Always specify prefix when managing specific cluster:
 NODE_PREFIX=k3s ./scripts/multipass.sh create
 
 # Setup
-NODE_PREFIX=k3s ./scripts/multipass.sh k3s-setup
+NODE_PREFIX=k3s ./scripts/k3s.sh setup
 
 # Destroy
-NODE_PREFIX=k3s ./scripts/multipass.sh --destroy
+NODE_PREFIX=k3s ./scripts/multipass.sh delete
 
 # List what exists
 multipass list
@@ -614,7 +615,7 @@ If you're still stuck:
 
 ```bash
 ./scripts/multipass.sh create
-./scripts/multipass.sh k3s-setup
+./scripts/k3s.sh setup
 ```
 
 ---
@@ -665,7 +666,7 @@ multipass list
 # Start fresh
 cd /path/to/abd-infra/scripts
 ./scripts/multipass.sh create
-./scripts/multipass.sh k3s-setup
+./scripts/k3s.sh setup
 ```
 
 ---
