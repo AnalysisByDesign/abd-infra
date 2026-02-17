@@ -272,8 +272,9 @@ kubectl get nodes
 1. **Multiple network interfaces**
 
    ```bash
-   # Specify advertise address explicitly
-   sudo docker swarm init --advertise-addr $(hostname -I | awk '{print $1}')
+   # Get manager IP from Mac host, then pass it explicitly
+   MANAGER_IP=$(multipass info ${NODE_PREFIX}-manager-1 | grep IPv4 | awk '{print $2}')
+   ./scripts/multipass.sh exec ${NODE_PREFIX}-manager-1 "sudo docker swarm init --advertise-addr $MANAGER_IP"
    ```
 
 1. **Docker not running**

@@ -257,19 +257,23 @@ kubectl expose deployment nginx --port=80 --type=NodePort
 # Create nodes with Docker pre-installed
 CLUSTER_TYPE=docker ./scripts/multipass.sh create
 
-# Initialize Swarm (manual for now)
-./scripts/multipass.sh shell ${NODE_PREFIX}-manager-1
-sudo docker swarm init --advertise-addr $(hostname -I | awk '{print $1}')
+# Get manager-1 IP (from Mac host)
+MANAGER_IP=$(multipass info ${NODE_PREFIX}-manager-1 | grep IPv4 | awk '{print $2}')
+
+# Initialize Swarm
+./scripts/multipass.sh exec ${NODE_PREFIX}-manager-1 "sudo docker swarm init --advertise-addr $MANAGER_IP"
 
 # Get join tokens
-MANAGER_TOKEN=$(sudo docker swarm join-token manager -q)
-WORKER_TOKEN=$(sudo docker swarm join-token worker -q)
+MANAGER_TOKEN=$(./scripts/multipass.sh exec ${NODE_PREFIX}-manager-1 "sudo docker swarm join-token manager -q")
+WORKER_TOKEN=$(./scripts/multipass.sh exec ${NODE_PREFIX}-manager-1 "sudo docker swarm join-token worker -q")
 
-# Join other managers (from ${NODE_PREFIX}-manager-2, ${NODE_PREFIX}-manager-3)
-sudo docker swarm join --token $MANAGER_TOKEN ${NODE_PREFIX}-manager-1:2377
+# Join other managers
+./scripts/multipass.sh exec ${NODE_PREFIX}-manager-2 "sudo docker swarm join --token $MANAGER_TOKEN $MANAGER_IP:2377"
+./scripts/multipass.sh exec ${NODE_PREFIX}-manager-3 "sudo docker swarm join --token $MANAGER_TOKEN $MANAGER_IP:2377"
 
-# Join workers (from ${NODE_PREFIX}-worker-1, ${NODE_PREFIX}-worker-2)
-sudo docker swarm join --token $WORKER_TOKEN ${NODE_PREFIX}-manager-1:2377
+# Join workers
+./scripts/multipass.sh exec ${NODE_PREFIX}-worker-1 "sudo docker swarm join --token $WORKER_TOKEN $MANAGER_IP:2377"
+./scripts/multipass.sh exec ${NODE_PREFIX}-worker-2 "sudo docker swarm join --token $WORKER_TOKEN $MANAGER_IP:2377"
 ```
 
 ### Docker Swarm Architecture
@@ -507,10 +511,8 @@ kubectl get nodes
 CLUSTER_TYPE=docker ./scripts/multipass.sh create
 
 # Initialize Swarm on ${NODE_PREFIX}-manager-1
-./scripts/multipass.sh shell ${NODE_PREFIX}-manager-1
-# Inside VM:
-sudo docker swarm init --advertise-addr $(hostname -I | awk '{print $1}')
-exit
+MANAGER_IP=$(multipass info ${NODE_PREFIX}-manager-1 | grep IPv4 | awk '{print $2}')
+./scripts/multipass.sh exec ${NODE_PREFIX}-manager-1 "sudo docker swarm init --advertise-addr $MANAGER_IP"
 
 # List nodes
 ./scripts/multipass.sh exec ${NODE_PREFIX}-manager-1 "sudo docker node ls"

@@ -71,12 +71,12 @@ export NODE_PREFIX=dck CLUSTER_TYPE=docker MANAGER_COUNT=3 WORKER_COUNT=3
 ./scripts/multipass.sh create
 
 # Initialize Swarm
-./scripts/multipass.sh exec ${NODE_PREFIX}-manager-1 "sudo docker swarm init --advertise-addr \$(hostname -I | awk '{print \$1}')"
+MANAGER_IP=$(multipass info ${NODE_PREFIX}-manager-1 | grep IPv4 | awk '{print $2}')
+./scripts/multipass.sh exec ${NODE_PREFIX}-manager-1 "sudo docker swarm init --advertise-addr ${MANAGER_IP}"
 
 # Get join tokens
 MANAGER_TOKEN=$(./scripts/multipass.sh exec ${NODE_PREFIX}-manager-1 "sudo docker swarm join-token manager -q")
 WORKER_TOKEN=$(./scripts/multipass.sh exec ${NODE_PREFIX}-manager-1 "sudo docker swarm join-token worker -q")
-MANAGER_IP=$(multipass info ${NODE_PREFIX}-manager-1 | grep IPv4 | awk '{print $2}')
 
 # Join additional managers
 ./scripts/multipass.sh exec ${NODE_PREFIX}-manager-2 "sudo docker swarm join --token $MANAGER_TOKEN $MANAGER_IP:2377"
