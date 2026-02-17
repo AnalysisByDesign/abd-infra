@@ -386,7 +386,9 @@ ${GREEN}High Availability Notes:${NC}
 ${GREEN}Istio Service Mesh:${NC}
     - Installed with minimal profile by default
     - Includes: istiod (control plane) and istio-ingressgateway
+    - Gateway API v1.2.1 installed for modern ingress management
     - To enable sidecar injection: kubectl label namespace <ns> istio-injection=enabled
+    - Use Gateway API (gateway.networking.k8s.io) for traffic management
     - Extend with addons: istioctl install --set profile=demo (includes Kiali, Jaeger, etc.)
     - Traefik is disabled on K3s clusters to avoid conflicts with Istio
 
@@ -651,9 +653,21 @@ istio_setup() {
 
     # Check if K3s is running
     print_info "Verifying K3s cluster is ready..."
-    if ! multipass exec "$first_server" -- sudo k3s kubectl get nodes > /dev/null 2>&1; then
+    local node_check
+    node_check=$(multipass exec "$first_server" -- sudo k3s kubectl get nodes 2>&1)
+    if [ $? -ne 0 ]; then
         print_error "K3s cluster is not ready. Run 'k3s-setup' first."
         return 1
+    fi
+
+    # Install Gateway API CRDs
+    print_header "Installing Gateway API CRDs"
+    print_info "Installing Kubernetes Gateway API..."
+
+    if ! multipass exec "$first_server" -- sudo k3s kubectl apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.2.1/standard-install.yaml; then
+        print_warning "Failed to install Gateway API CRDs, continuing anyway..."
+    else
+        print_success "Gateway API CRDs installed"
     fi
 
     # Download and install istioctl
@@ -666,11 +680,11 @@ istio_setup() {
 
     print_success "istioctl installed"
 
-    # Install Istio with minimal profile
-    print_header "Installing Istio (minimal profile)"
+    # Install Istio with minimal profile and Gateway API support
+    print_header "Installing Istio (minimal profile with Gateway API)"
     print_info "This may take a few minutes..."
 
-    if ! multipass exec "$first_server" -- sudo istioctl install --set profile=minimal -y; then
+    if ! multipass exec "$first_server" -- bash -c "KUBECONFIG=/etc/rancher/k3s/k3s.yaml sudo -E istioctl install --set profile=minimal -y"; then
         print_error "Failed to install Istio"
         return 1
     fi
@@ -698,23 +712,49 @@ istio_setup() {
         print_warning "istio-ingressgateway not found"
     fi
 
+    # Verify Gateway API CRDs
+    print_header "Verifying Gateway API"
+    if multipass exec "$first_server" -- sudo k3s kubectl get crd gateways.gateway.networking.k8s.io 2>/dev/null; then
+        print_success "Gateway API CRDs are installed"
+    else
+        print_warning "Gateway API CRDs not found"
+    fi
+
     # Display cluster status
     print_header "Istio Components Status"
     multipass exec "$first_server" -- sudo k3s kubectl get pods -n istio-system
 
     print_success "Istio service mesh installation complete!"
     print_info ""
+    print_info "Installed components:"
+    print_info "  ✓ Istio ${istio_version} (minimal profile)"
+    print_info "  ✓ Gateway API v1.2.1"
+    print_info ""
     print_info "Next steps:"
     print_info "  1. Enable Istio injection for your namespace:"
     print_info "     multipass exec $first_server -- sudo k3s kubectl label namespace default istio-injection=enabled"
     print_info ""
     print_info "  2. Verify Istio version:"
-    print_info "     multipass exec $first_server -- sudo istioctl version"
+    print_info "     multipass exec $first_server -- bash -c 'KUBECONFIG=/etc/rancher/k3s/k3s.yaml sudo -E istioctl version'"
     print_info ""
-    print_info "  3. Deploy a sample application:"
+    print_info "  3. Create a Gateway (using Gateway API):"
+    print_info "     kubectl apply -f - <<EOF"
+    print_info "     apiVersion: gateway.networking.k8s.io/v1"
+    print_info "     kind: Gateway"
+    print_info "     metadata:"
+    print_info "       name: gateway"
+    print_info "     spec:"
+    print_info "       gatewayClassName: istio"
+    print_info "       listeners:"
+    print_info "       - name: http"
+    print_info "         port: 80"
+    print_info "         protocol: HTTP"
+    print_info "     EOF"
+    print_info ""
+    print_info "  4. Deploy a sample application:"
     print_info "     multipass exec $first_server -- sudo k3s kubectl apply -f https://raw.githubusercontent.com/istio/istio/release-1.24/samples/bookinfo/platform/kube/bookinfo.yaml"
     print_info ""
-    print_info "  4. Extend Istio with addons (optional):"
+    print_info "  5. Extend Istio with addons (optional):"
     print_info "     Kiali, Jaeger, Prometheus, Grafana"
     print_info "     See: https://istio.io/latest/docs/setup/getting-started/#dashboard"
 }
