@@ -35,8 +35,8 @@ brew install helm skaffold kubectx # MacOS
 # Create and initialize cluster
 export NODE_PREFIX=k3s MANAGER_COUNT=1 WORKER_COUNT=2
 ./scripts/multipass.sh create
-./scripts/multipass.sh k3s-setup
-./scripts/multipass.sh k3s-kubeconfig
+./scripts/k3s.sh setup
+./scripts/k3s.sh kubeconfig
 
 # Use cluster
 export KUBECONFIG=~/.kube/${NODE_PREFIX}-k3s-multipass-config
@@ -115,8 +115,8 @@ echo http://$MANAGER_IP:8080
 export NODE_PREFIX=k3s MANAGER_COUNT=1 WORKER_COUNT=0 CPUS_PER_NODE=2 RAM_PER_NODE=4G
 ./scripts/multipass.sh create
 
-./scripts/multipass.sh k3s-setup
-./scripts/multipass.sh k3s-kubeconfig
+./scripts/k3s.sh setup
+./scripts/k3s.sh kubeconfig
 
 export KUBECONFIG=~/.kube/${NODE_PREFIX}-k3s-multipass-config
 kubectl get nodes
@@ -135,8 +135,8 @@ kubectl get nodes
 export NODE_PREFIX=k3s MANAGER_COUNT=5 WORKER_COUNT=5 CPUS_PER_NODE=4 RAM_PER_NODE=8G DISK_PER_NODE=100G
 ./scripts/multipass.sh create
 
-./scripts/multipass.sh k3s-setup
-./scripts/multipass.sh k3s-kubeconfig
+./scripts/k3s.sh setup
+./scripts/k3s.sh kubeconfig
 
 export KUBECONFIG=~/.kube/${NODE_PREFIX}-k3s-multipass-config
 
@@ -162,8 +162,8 @@ kubectl get nodes
 # Create cluster
 export NODE_PREFIX=k3s
 ./scripts/multipass.sh create
-./scripts/multipass.sh k3s-setup
-./scripts/multipass.sh k3s-kubeconfig
+./scripts/k3s.sh setup
+./scripts/k3s.sh kubeconfig
 
 export KUBECONFIG=~/.kube/${NODE_PREFIX}-k3s-multipass-config
 
@@ -223,14 +223,14 @@ open http://$MANAGER_IP:8080
 # Development cluster (lightweight)
 export NODE_PREFIX=dev
 ./scripts/multipass.sh create
-./scripts/multipass.sh k3s-setup
-./scripts/multipass.sh k3s-kubeconfig
+./scripts/k3s.sh setup
+./scripts/k3s.sh kubeconfig
 
 # Staging cluster (production-like)
 export NODE_PREFIX=stage CPUS_PER_NODE=4 RAM_PER_NODE=8G
 ./scripts/multipass.sh create
-./scripts/multipass.sh k3s-setup
-./scripts/multipass.sh k3s-kubeconfig
+./scripts/k3s.sh setup
+./scripts/k3s.sh kubeconfig
 
 # List all clusters
 multipass list
@@ -254,8 +254,8 @@ kubectl get nodes
 # Create K3s cluster
 export NODE_PREFIX=k3s MANAGER_COUNT=1 WORKER_COUNT=2
 ./scripts/multipass.sh create
-./scripts/multipass.sh k3s-setup
-./scripts/multipass.sh k3s-kubeconfig
+./scripts/k3s.sh setup
+./scripts/k3s.sh kubeconfig
 
 # Create Docker Swarm cluster
 export NODE_PREFIX=swarm CLUSTER_TYPE=docker MANAGER_COUNT=3 WORKER_COUNT=3
@@ -289,8 +289,8 @@ sudo docker node ls
 # Create cluster
 export NODE_PREFIX=k3s MANAGER_COUNT=1 WORKER_COUNT=2
 ./scripts/multipass.sh create
-./scripts/multipass.sh k3s-setup
-./scripts/multipass.sh k3s-kubeconfig
+./scripts/k3s.sh setup
+./scripts/k3s.sh kubeconfig
 
 export KUBECONFIG=~/.kube/${NODE_PREFIX}-k3s-multipass-config
 
@@ -309,8 +309,8 @@ skaffold dev
 # Create production-like cluster
 export NODE_PREFIX=k3s CPUS_PER_NODE=4 RAM_PER_NODE=8G
 ./scripts/multipass.sh create
-./scripts/multipass.sh k3s-setup
-./scripts/multipass.sh k3s-kubeconfig
+./scripts/k3s.sh setup
+./scripts/k3s.sh kubeconfig
 
 export KUBECONFIG=~/.kube/${NODE_PREFIX}-k3s-multipass-config
 
@@ -338,8 +338,8 @@ git push
 # Create simple cluster
 export NODE_PREFIX=k3s
 ./scripts/multipass.sh create
-./scripts/multipass.sh k3s-setup
-./scripts/multipass.sh k3s-kubeconfig
+./scripts/k3s.sh setup
+./scripts/k3s.sh kubeconfig
 
 export KUBECONFIG=~/.kube/${NODE_PREFIX}-k3s-multipass-config
 
@@ -364,8 +364,8 @@ kubectl delete deployment nginx redis
 # Create HA cluster
 export NODE_PREFIX=k3s MANAGER_COUNT=3 WORKER_COUNT=2
 ./scripts/multipass.sh create
-./scripts/multipass.sh k3s-setup
-./scripts/multipass.sh k3s-kubeconfig
+./scripts/k3s.sh setup
+./scripts/k3s.sh kubeconfig
 
 export KUBECONFIG=~/.kube/${NODE_PREFIX}-k3s-multipass-config
 
@@ -397,20 +397,20 @@ watch kubectl get nodes
 # Cluster 1 - Production
 export NODE_PREFIX=prod CPUS_PER_NODE=4 RAM_PER_NODE=8G 
 ./scripts/multipass.sh create
-./scripts/multipass.sh k3s-setup
-./scripts/multipass.sh k3s-kubeconfig
+./scripts/k3s.sh setup
+./scripts/k3s.sh kubeconfig
 
 # Cluster 2 - Staging
 export NODE_PREFIX=staging CPUS_PER_NODE=3 RAM_PER_NODE=8G 
 ./scripts/multipass.sh create
-./scripts/multipass.sh k3s-setup
-./scripts/multipass.sh k3s-kubeconfig
+./scripts/k3s.sh setup
+./scripts/k3s.sh kubeconfig
 
 # Cluster 3 - Development
 export NODE_PREFIX=dev CPUS_PER_NODE=2 RAM_PER_NODE=4G 
 ./scripts/multipass.sh create
-./scripts/multipass.sh k3s-setup
-./scripts/multipass.sh k3s-kubeconfig
+./scripts/k3s.sh setup
+./scripts/k3s.sh kubeconfig
 
 # Rename contexts for clarity
 kubectl config rename-context default prod --kubeconfig ~/.kube/prod-k3s-multipass-config
@@ -446,8 +446,8 @@ kubectl get nodes
 # Create cluster
 export NODE_PREFIX=k3s
 ./scripts/multipass.sh create
-./scripts/multipass.sh k3s-setup
-./scripts/multipass.sh k3s-kubeconfig
+./scripts/k3s.sh setup
+./scripts/k3s.sh kubeconfig
 
 export KUBECONFIG=~/.kube/${NODE_PREFIX}-k3s-multipass-config
 
@@ -476,8 +476,8 @@ kubectl get nodes -o wide
 # Create cluster
 export NODE_PREFIX=k3s
 ./scripts/multipass.sh create
-./scripts/multipass.sh k3s-setup
-./scripts/multipass.sh k3s-kubeconfig
+./scripts/k3s.sh setup
+./scripts/k3s.sh kubeconfig
 
 export KUBECONFIG=~/.kube/${NODE_PREFIX}-k3s-multipass-config
 

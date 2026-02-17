@@ -30,14 +30,14 @@ NODE_PREFIX=k3s
 
 ```bash
 # After creating K3s nodes
-./scripts/multipass.sh k3s-setup
+./scripts/k3s.sh setup
 ```
 
 ### Export Kubeconfig
 
 ```bash
 # Get kubeconfig for kubectl access
-./scripts/multipass.sh k3s-kubeconfig
+./scripts/k3s.sh kubeconfig
 
 # Use it
 export KUBECONFIG=~/.kube/${NODE_PREFIX}-k3s-multipass-config
@@ -93,7 +93,7 @@ Prefix for node names. Allows running multiple clusters simultaneously.
 ```bash
 # No prefix (default)
 ./scripts/multipass.sh create
-# Creates: ${NODE_PREFIX}-manager-1, ${NODE_PREFIX}-manager-2, ${NODE_PREFIX}-manager-3, ${NODE_PREFIX}-worker-1, ${NODE_PREFIX}-worker-2
+# Creates: manager-1, worker-1, worker-2
 
 # With prefix (hyphen separator added automatically)
 NODE_PREFIX=k3s ./scripts/multipass.sh create
@@ -117,7 +117,7 @@ CLUSTER_TYPE=minikube ./scripts/multipass.sh create
 
 ### MANAGER_COUNT
 
-Number of manager/server nodes (default: 3)
+Number of manager/server nodes (default: 1)
 
 ```bash
 # Single node cluster
@@ -129,7 +129,7 @@ MANAGER_COUNT=5 ./scripts/multipass.sh create
 
 ### WORKER_COUNT
 
-Number of worker/agent nodes (default: 3)
+Number of worker/agent nodes (default: 2)
 
 ```bash
 # No workers (managers only)
@@ -198,10 +198,10 @@ IMAGE=22.04 ./scripts/multipass.sh create
 ./scripts/multipass.sh create
 
 # 2. Initialize K3s with embedded etcd HA
-./scripts/multipass.sh k3s-setup
+./scripts/k3s.sh setup
 
 # 3. Export kubeconfig
-./scripts/multipass.sh k3s-kubeconfig
+./scripts/k3s.sh kubeconfig
 
 # 4. Use cluster
 export KUBECONFIG=~/.kube/k3s-multipass-config
@@ -308,8 +308,8 @@ Use `NODE_PREFIX` to run K3s and Docker Swarm clusters simultaneously:
 
 # Create K3s cluster with prefix
 NODE_PREFIX=k3s CLUSTER_TYPE=k3s ./scripts/multipass.sh create
-NODE_PREFIX=k3s ./scripts/multipass.sh k3s-setup
-NODE_PREFIX=k3s ./scripts/multipass.sh k3s-kubeconfig
+NODE_PREFIX=k3s ./scripts/k3s.sh setup
+NODE_PREFIX=k3s ./scripts/k3s.sh kubeconfig
 
 # Create Docker Swarm cluster with different prefix
 NODE_PREFIX=docker CLUSTER_TYPE=docker ./scripts/multipass.sh create
@@ -331,10 +331,10 @@ sudo docker node ls
 
 ```bash
 # Destroy K3s cluster only
-NODE_PREFIX=k3s ./scripts/multipass.sh --destroy
+NODE_PREFIX=k3s ./scripts/multipass.sh delete
 
 # Destroy Docker cluster only
-NODE_PREFIX=docker ./scripts/multipass.sh --destroy
+NODE_PREFIX=docker ./scripts/multipass.sh delete
 ```
 
 ---
@@ -461,8 +461,8 @@ WORKER_COUNT=5 \
 CPUS_PER_NODE=4 \
 RAM_PER_NODE=8G \
 ./scripts/multipass.sh create && \
-NODE_PREFIX=prod ./scripts/multipass.sh k3s-setup && \
-NODE_PREFIX=prod ./scripts/multipass.sh k3s-kubeconfig
+NODE_PREFIX=prod ./scripts/k3s.sh setup && \
+NODE_PREFIX=prod ./scripts/k3s.sh kubeconfig
 ```
 
 ### Multiple Clusters Workflow
@@ -470,15 +470,15 @@ NODE_PREFIX=prod ./scripts/multipass.sh k3s-kubeconfig
 ```bash
 # Development K3s cluster
 NODE_PREFIX=dev CPUS_PER_NODE=2 RAM_PER_NODE=4G ./scripts/multipass.sh create
-NODE_PREFIX=dev ./scripts/multipass.sh k3s-setup
+NODE_PREFIX=dev ./scripts/k3s.sh setup
 
 # Staging K3s cluster
 NODE_PREFIX=staging CPUS_PER_NODE=3 RAM_PER_NODE=6G ./scripts/multipass.sh create
-NODE_PREFIX=staging ./scripts/multipass.sh k3s-setup
+NODE_PREFIX=staging ./scripts/k3s.sh setup
 
 # Production simulation
 NODE_PREFIX=prod CPUS_PER_NODE=4 RAM_PER_NODE=8G ./scripts/multipass.sh create
-NODE_PREFIX=prod ./scripts/multipass.sh k3s-setup
+NODE_PREFIX=prod ./scripts/k3s.sh setup
 
 # List all
 multipass list
@@ -494,8 +494,8 @@ multipass list
 ```bash
 # Create, initialize, and use K3s cluster
 ./scripts/multipass.sh create && \
-./scripts/multipass.sh k3s-setup && \
-./scripts/multipass.sh k3s-kubeconfig && \
+./scripts/k3s.sh setup && \
+./scripts/k3s.sh kubeconfig && \
 export KUBECONFIG=~/.kube/k3s-multipass-config && \
 kubectl get nodes
 ```
@@ -516,13 +516,13 @@ exit
 ./scripts/multipass.sh exec ${NODE_PREFIX}-manager-1 "sudo docker node ls"
 ```
 
-### Cleanup Everything
+### Cleanup
 
 ```bash
-# Destroy all clusters (without prefix)
+# Destroy cluster (no prefix)
 ./scripts/multipass.sh delete
 
-# With specific prefix
+# Destroy specific cluster by prefix
 NODE_PREFIX=k3s ./scripts/multipass.sh delete
 NODE_PREFIX=docker ./scripts/multipass.sh delete
 

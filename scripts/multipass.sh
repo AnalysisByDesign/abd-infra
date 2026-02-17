@@ -1,23 +1,16 @@
 #!/bin/bash
 
-# Multipass Cluster Manager
-# Manage a cluster of multipass instances for Docker Swarm, Kubernetes (Minikube), or K3s
+# Multipass Infrastructure Manager
+# Manage the lifecycle of multipass VMs for cluster nodes
 # Usage: ./multipass.sh [command] [options]
 
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CONFIG_DIR="${SCRIPT_DIR}/../config/multipass"
-NODE_PREFIX=${NODE_PREFIX:-}
-# Automatically add hyphen separator when NODE_PREFIX is set
-PREFIX_WITH_SEP="${NODE_PREFIX:+${NODE_PREFIX}-}"
-MANAGER_COUNT=${MANAGER_COUNT:-1}
-WORKER_COUNT=${WORKER_COUNT:-2}
-CLUSTER_TYPE=${CLUSTER_TYPE:-k3s}
-IMAGE="24.04"
-CPUS_PER_NODE=${CPUS_PER_NODE:-2}
-RAM_PER_NODE=${RAM_PER_NODE:-4G}
-DISK_PER_NODE=${DISK_PER_NODE:-20G}
+
+# shellcheck source=lib.sh
+source "${SCRIPT_DIR}/lib.sh"
 
 # Set cloud-init file based on cluster type
 case "$CLUSTER_TYPE" in
@@ -37,53 +30,6 @@ case "$CLUSTER_TYPE" in
         exit 1
         ;;
 esac
-
-# Colors for output
-RED=$'\033[0;31m'
-GREEN=$'\033[0;32m'
-YELLOW=$'\033[1;33m'
-BLUE=$'\033[0;34m'
-NC=$'\033[0m' # No Color
-
-# Helper functions
-print_header() {
-    printf "${BLUE}=== %s ===${NC}\n" "$1"
-}
-
-print_success() {
-    printf "${GREEN}✓ %s${NC}\n" "$1"
-}
-
-print_info() {
-    printf "${BLUE}ℹ %s${NC}\n" "$1"
-}
-
-print_warning() {
-    printf "${YELLOW}⚠ %s${NC}\n" "$1"
-}
-
-print_error() {
-    printf "${RED}✗ %s${NC}\n" "$1"
-}
-
-# Generate node names
-get_manager_names() {
-    for i in $(seq 1 $MANAGER_COUNT); do
-        echo "${PREFIX_WITH_SEP}manager-$i"
-    done
-}
-
-get_worker_names() {
-    for i in $(seq 1 $WORKER_COUNT); do
-        echo "${PREFIX_WITH_SEP}worker-$i"
-    done
-}
-
-get_all_names() {
-    get_manager_names
-    get_worker_names
-}
-
 
 # Create nodes
 create_nodes() {
@@ -246,18 +192,6 @@ exec_node() {
     multipass exec "$node" -- $cmd
 }
 
-# Get node IP
-get_node_ip() {
-    local node=$1
-
-    if [ -z "$node" ]; then
-        print_error "Please specify a node name"
-        return 1
-    fi
-
-    multipass info "$node" | grep "IPv4" | awk '{print $2}'
-}
-
 # List node IPs
 list_ips() {
     print_header "Node IP Addresses"
@@ -272,7 +206,8 @@ list_ips() {
 # Display help
 show_help() {
     cat << EOF
-${BLUE}Multipass Cluster Manager (Docker Swarm / Kubernetes / K3s)${NC}
+${BLUE}Multipass Infrastructure Manager${NC}
+Manages the lifecycle of multipass VMs for cluster nodes.
 
 ${GREEN}Usage:${NC}
     ./multipass.sh [command] [options]
@@ -287,10 +222,6 @@ ${GREEN}Commands:${NC}
     shell <node>        SSH into a specific node
     exec <node> <cmd>   Execute a command on a node
     ips                 Show IP addresses of all nodes
-    nfs-setup           Configure NFS + worker labels + demo service (Docker Swarm)
-    k3s-setup           Initialize K3s cluster (server + agents)
-    k3s-kubeconfig      Export K3s kubeconfig for local kubectl access
-    istio-setup         Install Istio service mesh (minimal profile)
     help                Display this help message
 
 ${GREEN}Environment Variables:${NC}
@@ -300,63 +231,40 @@ ${GREEN}Environment Variables:${NC}
                         Note: Hyphen separator is added automatically
     CLUSTER_TYPE        Type of cluster to create (default: k3s)
                         Options: docker, minikube, k3s
-                        Note: K3s clusters have Traefik disabled (use istio-setup for ingress)
-    MANAGER_COUNT       Number of manager nodes (default: 3)
-    WORKER_COUNT        Number of worker nodes (default: 3)
-    CPUS_PER_NODE       CPU cores per node (default: 3)
-    RAM_PER_NODE        RAM per node (default: 6G)
-    DISK_PER_NODE       Disk size per node (default: 40G)
+    MANAGER_COUNT       Number of manager nodes (default: 1)
+    WORKER_COUNT        Number of worker nodes (default: 2)
+    CPUS_PER_NODE       CPU cores per node (default: 2)
+    RAM_PER_NODE        RAM per node (default: 4G)
+    DISK_PER_NODE       Disk size per node (default: 20G)
     IMAGE               Ubuntu image to use (default: 24.04)
-    ISTIO_VERSION       Istio version to install (default: 1.24.1)
 
 ${GREEN}Examples:${NC}
-    # Create K3s cluster (3 managers, 3 workers) - DEFAULT
+    # Create K3s cluster (default)
     ./multipass.sh create
 
-    # Create Docker Swarm cluster (3 managers, 3 workers)
+    # Create Docker Swarm cluster
     CLUSTER_TYPE=docker ./multipass.sh create
 
-    # Create Kubernetes/Minikube cluster (3 managers, 3 workers)
+    # Create Minikube cluster
     CLUSTER_TYPE=minikube ./multipass.sh create
 
-    # Create custom K3s cluster (1 manager, 2 workers)
+    # Create custom cluster (1 manager, 2 workers)
     MANAGER_COUNT=1 WORKER_COUNT=2 ./multipass.sh create
 
-    # Run K3s and Docker Swarm clusters simultaneously with prefixes
+    # Run two clusters simultaneously with prefixes
     NODE_PREFIX=k3s CLUSTER_TYPE=k3s ./multipass.sh create
-    NODE_PREFIX=k3s ./multipass.sh k3s-setup
     NODE_PREFIX=docker CLUSTER_TYPE=docker ./multipass.sh create
 
-    # Start all nodes
+    # Start/stop/list nodes
     ./multipass.sh start all
-
-    # Stop only worker nodes
     ./multipass.sh stop workers
+    ./multipass.sh list
 
-    # Connect to a specific node
+    # Connect to a node
     ./multipass.sh shell manager-1
 
     # Get IP addresses
     ./multipass.sh ips
-
-    # Initialize K3s cluster (after creating K3s nodes)
-    ./multipass.sh k3s-setup
-
-    # Export kubeconfig for local kubectl access
-    ./multipass.sh k3s-kubeconfig
-
-    # Full K3s workflow
-    ./multipass.sh create && ./multipass.sh k3s-setup && ./multipass.sh k3s-kubeconfig
-
-    # Full K3s + Istio workflow
-    ./multipass.sh create && ./multipass.sh k3s-setup && ./multipass.sh istio-setup
-    ./multipass.sh k3s-kubeconfig
-
-    # Enable Istio injection for a namespace
-    multipass exec manager-1 -- sudo k3s kubectl label namespace default istio-injection=enabled
-
-    # Configure NFS + labels + demo service (Docker Swarm only)
-    ./multipass.sh nfs-setup
 
 ${GREEN}Node Naming:${NC}
     Manager nodes: [prefix-]manager-1, [prefix-]manager-2, ...
@@ -366,397 +274,14 @@ ${GREEN}Node Naming:${NC}
     With NODE_PREFIX=k3s: k3s-manager-1, k3s-worker-1, etc.
     (Hyphen separator is added automatically)
 
-${GREEN}High Availability Notes:${NC}
-    ${YELLOW}Docker Swarm:${NC}
-    - Requires ODD number of managers for Raft consensus (1, 3, 5, 7)
-    - 3 managers = tolerate 1 failure (recommended minimum for HA)
-    - 5 managers = tolerate 2 failures (production recommended)
-    - NEVER use 2 or 4 managers (no benefit, worse than 1 or 3)
+${GREEN}Technology-Specific Setup:${NC}
+    After creating nodes, use the appropriate script for cluster setup:
 
-    ${YELLOW}K3s:${NC}
-    - Single server mode: 1 server node (development, no HA)
-    - HA mode: 3+ server nodes with embedded etcd (production-like)
-    - For local dev: 1 server + 2 agents = 3 nodes (saves resources)
-    - For production-like: 3 servers + 3 agents = 6 nodes (matches Swarm)
-
-    ${YELLOW}Minikube:${NC}
-    - Single-node by design (1 manager, workers optional)
-    - Multi-node support limited to testing workload distribution
-
-${GREEN}Istio Service Mesh:${NC}
-    - Installed with minimal profile by default
-    - Includes: istiod (control plane) and istio-ingressgateway
-    - Gateway API v1.2.1 installed for modern ingress management
-    - To enable sidecar injection: kubectl label namespace <ns> istio-injection=enabled
-    - Use Gateway API (gateway.networking.k8s.io) for traffic management
-    - Extend with addons: istioctl install --set profile=demo (includes Kiali, Jaeger, etc.)
-    - Traefik is disabled on K3s clusters to avoid conflicts with Istio
+    K3s:          ./k3s.sh help
+    Docker Swarm: ./docker-swarm.sh help
+    Minikube:     ./minikube.sh help
 
 EOF
-}
-
-# Configure NFS on manager, label workers, and deploy demo service
-nfs_setup() {
-    local manager=${1:-manager-1}
-    local export_dir=${2:-/srv/swarm-shared}
-    local volume_name=${3:-swarm_shared}
-    local service_name=${4:-demo}
-
-    print_header "Configuring NFS on $manager"
-
-    multipass exec "$manager" -- sudo apt-get update
-    multipass exec "$manager" -- sudo apt-get install -y nfs-kernel-server
-    multipass exec "$manager" -- sudo mkdir -p "$export_dir"
-    multipass exec "$manager" -- sudo bash -c "echo \"$export_dir *(rw,sync,no_subtree_check,no_root_squash)\" >> /etc/exports"
-    multipass exec "$manager" -- sudo exportfs -ra
-
-    print_header "Installing NFS client on workers"
-    local workers=$(get_worker_names)
-    for node in $workers; do
-        multipass exec "$node" -- sudo apt-get update
-        multipass exec "$node" -- sudo apt-get install -y nfs-common
-    done
-
-    print_header "Labeling workers"
-    for node in $workers; do
-        multipass exec "$manager" -- docker node update --label-add role=worker "$node"
-    done
-
-    local manager_ip
-    manager_ip=$(get_node_ip "$manager")
-
-    print_header "Deploying demo service"
-    multipass exec "$manager" -- docker service create \
-        --name "$service_name" \
-        --constraint 'node.labels.role==worker' \
-        --mount type=volume,source="$volume_name",target=/data,volume-driver=local,volume-opt=type=nfs,volume-opt=o=addr="$manager_ip"\\,nfsvers=4\\,rw,volume-opt=device=:"$export_dir" \
-        nginx:alpine
-
-    print_success "NFS, labels, and demo service configured"
-}
-
-# Initialize K3s cluster
-# Wait for K3s API server to be ready
-wait_for_k3s_api() {
-    local server_ip=$1
-    local max_attempts=15
-    local attempt=0
-
-    print_info "Waiting for K3s API server..."
-
-    while [ $attempt -lt $max_attempts ]; do
-        if curl -k --silent --fail --max-time 2 "https://$server_ip:6443/ping" > /dev/null 2>&1; then
-            print_success "K3s API server is ready"
-            return 0
-        fi
-        attempt=$((attempt + 1))
-        sleep 3
-    done
-
-    print_error "K3s API server did not become ready"
-    return 1
-}
-
-# Initialize K3s cluster
-k3s_setup() {
-    local first_server="${PREFIX_WITH_SEP}manager-1"
-
-    print_header "Initializing K3s Cluster"
-
-    # Check if first server node exists
-    if ! multipass list | grep -q "^$first_server "; then
-        print_error "First server node ($first_server) does not exist. Run 'create' first."
-        return 1
-    fi
-
-    # Get first server IP
-    local server_ip
-    server_ip=$(get_node_ip "$first_server")
-    print_info "First server IP: $server_ip"
-
-    # Install K3s on first server with cluster-init for HA
-    print_header "Installing K3s on $first_server (first server with embedded etcd)"
-
-    if ! multipass exec "$first_server" -- bash -c "curl -sfL https://get.k3s.io | sh -s - server --cluster-init --disable traefik"; then
-        print_error "Failed to install K3s on $first_server"
-        return 1
-    fi
-
-    # Wait for K3s to be ready
-    print_info "Waiting for K3s to start..."
-    sleep 30
-
-    # Wait for API server (this verifies K3s is running)
-    if ! wait_for_k3s_api "$server_ip"; then
-        print_error "K3s API server did not become ready"
-        print_info "Check logs: multipass exec $first_server -- sudo journalctl -xeu k3s.service"
-        return 1
-    fi
-
-    print_success "K3s is ready"
-
-    # Get node token
-    print_info "Retrieving node token..."
-    local node_token
-    node_token=$(multipass exec "$first_server" -- sudo cat /var/lib/rancher/k3s/server/node-token)
-
-    if [ -z "$node_token" ]; then
-        print_error "Failed to retrieve node token"
-        return 1
-    fi
-
-    print_success "First K3s server initialized successfully"
-
-    # Install K3s on additional manager nodes as servers (HA mode)
-    local managers=$(get_manager_names)
-    for node in $managers; do
-        if [ "$node" = "$first_server" ]; then
-            continue
-        fi
-
-        if ! multipass list | grep -q "^$node "; then
-            print_warning "Node $node does not exist, skipping..."
-            continue
-        fi
-
-        print_header "Installing K3s on $node (additional server)"
-
-        if ! multipass exec "$node" -- bash -c "curl -sfL https://get.k3s.io | K3S_URL=https://$server_ip:6443 K3S_TOKEN=$node_token sh -s - server --disable traefik"; then
-            print_error "Failed to install K3s on $node"
-            print_info "Continuing with remaining nodes..."
-            continue
-        fi
-
-        print_info "Waiting for $node to initialize..."
-        sleep 20
-
-        print_success "Server $node installation complete"
-    done
-
-    # Install K3s on worker nodes as agents
-    local workers=$(get_worker_names)
-    for node in $workers; do
-        if ! multipass list | grep -q "^$node "; then
-            print_warning "Node $node does not exist, skipping..."
-            continue
-        fi
-
-        print_header "Installing K3s on $node (agent)"
-
-        if ! multipass exec "$node" -- bash -c "curl -sfL https://get.k3s.io | K3S_URL=https://$server_ip:6443 K3S_TOKEN=$node_token sh -"; then
-            print_error "Failed to install K3s on $node"
-            print_info "Continuing with remaining nodes..."
-            continue
-        fi
-
-        print_info "Waiting for $node to join..."
-        sleep 15
-
-        print_success "Agent $node installation complete"
-    done
-
-    # Wait a bit for all nodes to stabilize
-    print_info "Waiting for cluster to stabilize..."
-    sleep 10
-
-    # Display cluster status
-    print_header "K3s Cluster Status"
-    if ! multipass exec "$first_server" -- sudo k3s kubectl get nodes; then
-        print_error "Failed to get cluster status"
-        return 1
-    fi
-
-    # Check which nodes are Ready
-    print_header "Checking Node Status"
-    local ready_count=0
-    local total_count=0
-
-    for node in $(get_all_names); do
-        total_count=$((total_count + 1))
-        if multipass exec "$first_server" -- sudo k3s kubectl get node "$node" 2>/dev/null | grep -q "Ready"; then
-            ready_count=$((ready_count + 1))
-            print_success "$node is Ready"
-        else
-            print_warning "$node is not Ready yet (may need more time)"
-        fi
-    done
-
-    print_header "Cluster Summary"
-    print_info "Nodes Ready: $ready_count/$total_count"
-
-    if [ $ready_count -eq $total_count ]; then
-        print_success "All nodes joined successfully!"
-    elif [ $ready_count -gt 0 ]; then
-        print_warning "Some nodes are not ready yet. Wait a few minutes and check again:"
-        print_info "  multipass exec $first_server -- sudo k3s kubectl get nodes"
-    else
-        print_error "No nodes are ready. Check logs for errors."
-        return 1
-    fi
-
-    print_success "K3s cluster initialization complete!"
-    print_info ""
-    print_info "Access cluster: multipass exec $first_server -- sudo k3s kubectl get nodes"
-    print_info "Get kubeconfig: ./multipass.sh k3s-kubeconfig"
-    print_info "Check all pods: multipass exec $first_server -- sudo k3s kubectl get pods -A"
-}
-
-# Export K3s kubeconfig for local kubectl access
-k3s_kubeconfig() {
-    local first_server="${PREFIX_WITH_SEP}manager-1"
-    local kubeconfig_name="${PREFIX_WITH_SEP}k3s-multipass-config"
-    local kubeconfig_path="${HOME}/.kube/${kubeconfig_name}"
-
-    print_header "Exporting K3s Kubeconfig"
-
-    # Check if first server node exists
-    if ! multipass list | grep -q "^$first_server "; then
-        print_error "First server node ($first_server) does not exist."
-        return 1
-    fi
-
-    # Get first server IP
-    local server_ip
-    server_ip=$(get_node_ip "$first_server")
-
-    # Create .kube directory if it doesn't exist
-    mkdir -p "${HOME}/.kube"
-
-    # Get kubeconfig from first server and modify server address
-    print_info "Retrieving kubeconfig from $first_server..."
-    multipass exec "$first_server" -- sudo cat /etc/rancher/k3s/k3s.yaml | \
-        sed "s/127.0.0.1/$server_ip/g" > "$kubeconfig_path"
-
-    print_success "Kubeconfig exported to: $kubeconfig_path"
-    print_info ""
-    print_info "To use this cluster with kubectl:"
-    print_info "  export KUBECONFIG=$kubeconfig_path"
-    print_info "  kubectl get nodes"
-    print_info ""
-    print_info "Or merge with your existing kubeconfig:"
-    print_info "  KUBECONFIG=~/.kube/config:$kubeconfig_path kubectl config view --flatten > ~/.kube/config.new"
-    print_info "  mv ~/.kube/config.new ~/.kube/config"
-}
-
-# Install Istio service mesh
-istio_setup() {
-    local first_server="${PREFIX_WITH_SEP}manager-1"
-    local istio_version="${ISTIO_VERSION:-1.24.1}"
-
-    print_header "Installing Istio Service Mesh"
-
-    # Check if first server node exists
-    if ! multipass list | grep -q "^$first_server "; then
-        print_error "First server node ($first_server) does not exist. Run 'create' and 'k3s-setup' first."
-        return 1
-    fi
-
-    # Check if K3s is running
-    print_info "Verifying K3s cluster is ready..."
-    local node_check
-    node_check=$(multipass exec "$first_server" -- sudo k3s kubectl get nodes 2>&1)
-    if [ $? -ne 0 ]; then
-        print_error "K3s cluster is not ready. Run 'k3s-setup' first."
-        return 1
-    fi
-
-    # Install Gateway API CRDs
-    print_header "Installing Gateway API CRDs"
-    print_info "Installing Kubernetes Gateway API..."
-
-    if ! multipass exec "$first_server" -- sudo k3s kubectl apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.2.1/standard-install.yaml; then
-        print_warning "Failed to install Gateway API CRDs, continuing anyway..."
-    else
-        print_success "Gateway API CRDs installed"
-    fi
-
-    # Download and install istioctl
-    print_header "Installing istioctl CLI"
-    multipass exec "$first_server" -- bash -c "curl -L https://istio.io/downloadIstio | ISTIO_VERSION=$istio_version sh -"
-
-    # Move istioctl to PATH
-    multipass exec "$first_server" -- sudo mv "istio-$istio_version/bin/istioctl" /usr/local/bin/istioctl
-    multipass exec "$first_server" -- sudo chmod +x /usr/local/bin/istioctl
-
-    print_success "istioctl installed"
-
-    # Install Istio with minimal profile and Gateway API support
-    print_header "Installing Istio (minimal profile with Gateway API)"
-    print_info "This may take a few minutes..."
-
-    if ! multipass exec "$first_server" -- bash -c "KUBECONFIG=/etc/rancher/k3s/k3s.yaml sudo -E istioctl install --set profile=minimal -y"; then
-        print_error "Failed to install Istio"
-        return 1
-    fi
-
-    print_success "Istio installed successfully"
-
-    # Wait for Istio components to be ready
-    print_info "Waiting for Istio components to be ready..."
-    sleep 10
-
-    # Verify installation
-    print_header "Verifying Istio Installation"
-
-    # Check istiod deployment
-    if multipass exec "$first_server" -- sudo k3s kubectl get deployment -n istio-system istiod 2>/dev/null | grep -q "1/1"; then
-        print_success "istiod is running"
-    else
-        print_warning "istiod may still be initializing"
-    fi
-
-    # Check ingress gateway
-    if multipass exec "$first_server" -- sudo k3s kubectl get service -n istio-system istio-ingressgateway 2>/dev/null; then
-        print_success "istio-ingressgateway service is created"
-    else
-        print_warning "istio-ingressgateway not found"
-    fi
-
-    # Verify Gateway API CRDs
-    print_header "Verifying Gateway API"
-    if multipass exec "$first_server" -- sudo k3s kubectl get crd gateways.gateway.networking.k8s.io 2>/dev/null; then
-        print_success "Gateway API CRDs are installed"
-    else
-        print_warning "Gateway API CRDs not found"
-    fi
-
-    # Display cluster status
-    print_header "Istio Components Status"
-    multipass exec "$first_server" -- sudo k3s kubectl get pods -n istio-system
-
-    print_success "Istio service mesh installation complete!"
-    print_info ""
-    print_info "Installed components:"
-    print_info "  ✓ Istio ${istio_version} (minimal profile)"
-    print_info "  ✓ Gateway API v1.2.1"
-    print_info ""
-    print_info "Next steps:"
-    print_info "  1. Enable Istio injection for your namespace:"
-    print_info "     multipass exec $first_server -- sudo k3s kubectl label namespace default istio-injection=enabled"
-    print_info ""
-    print_info "  2. Verify Istio version:"
-    print_info "     multipass exec $first_server -- bash -c 'KUBECONFIG=/etc/rancher/k3s/k3s.yaml sudo -E istioctl version'"
-    print_info ""
-    print_info "  3. Create a Gateway (using Gateway API):"
-    print_info "     kubectl apply -f - <<EOF"
-    print_info "     apiVersion: gateway.networking.k8s.io/v1"
-    print_info "     kind: Gateway"
-    print_info "     metadata:"
-    print_info "       name: gateway"
-    print_info "     spec:"
-    print_info "       gatewayClassName: istio"
-    print_info "       listeners:"
-    print_info "       - name: http"
-    print_info "         port: 80"
-    print_info "         protocol: HTTP"
-    print_info "     EOF"
-    print_info ""
-    print_info "  4. Deploy a sample application:"
-    print_info "     multipass exec $first_server -- sudo k3s kubectl apply -f https://raw.githubusercontent.com/istio/istio/release-1.24/samples/bookinfo/platform/kube/bookinfo.yaml"
-    print_info ""
-    print_info "  5. Extend Istio with addons (optional):"
-    print_info "     Kiali, Jaeger, Prometheus, Grafana"
-    print_info "     See: https://istio.io/latest/docs/setup/getting-started/#dashboard"
 }
 
 # Main command handler
@@ -797,18 +322,6 @@ main() {
             ;;
         ips)
             list_ips
-            ;;
-        nfs-setup)
-            nfs_setup "$2" "$3" "$4" "$5"
-            ;;
-        k3s-setup)
-            k3s_setup
-            ;;
-        k3s-kubeconfig)
-            k3s_kubeconfig
-            ;;
-        istio-setup)
-            istio_setup
             ;;
         help)
             show_help

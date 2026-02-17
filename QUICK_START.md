@@ -9,18 +9,31 @@ cd /Users/dave/Documents/Projects/abd-training/abd-infra/scripts
 
 ## Create K3s Cluster with Proper Resources
 
-### Option 1: Use Script Defaults (3 CPU, 6GB RAM)
+### Option 1: Use Script Defaults (1 manager, 2 workers, 2 CPU, 4GB RAM)
 
 ```bash
 export NODE_PREFIX=k3s CLUSTER_TYPE=k3s MANAGER_COUNT=1 WORKER_COUNT=2
-./multipass.sh
+./multipass.sh create
 ```
 
 ### Option 2: Increase Resources for Better Performance (RECOMMENDED)
 
 ```bash
 export NODE_PREFIX=k3s CLUSTER_TYPE=k3s MANAGER_COUNT=1 WORKER_COUNT=2
-CPUS_PER_NODE=4 RAM_PER_NODE=8G ./multipass.sh
+CPUS_PER_NODE=4 RAM_PER_NODE=8G ./multipass.sh create
+```
+
+## Install K3s
+
+```bash
+./k3s.sh setup
+```
+
+## Export Kubeconfig
+
+```bash
+./k3s.sh kubeconfig
+export KUBECONFIG=~/.kube/${NODE_PREFIX}-k3s-multipass-config
 ```
 
 ## Verify Node Resources
@@ -65,7 +78,8 @@ Memory usage:   XXX.XMiB out of 7.7GiB
 
 ```bash
 ./multipass.sh delete
-CPUS_PER_NODE=4 RAM_PER_NODE=8G ./multipass.sh
+CPUS_PER_NODE=4 RAM_PER_NODE=8G ./multipass.sh create
+./k3s.sh setup
 ```
 
 ### Problem: K3s installation hangs or fails
@@ -80,7 +94,7 @@ After successful creation:
 
 ```bash
 # Get kubeconfig
-export KUBECONFIG=~/.kube/${NODE_PREFIX}-k3s-cluster-config
+export KUBECONFIG=~/.kube/${NODE_PREFIX}-k3s-multipass-config
 
 # Verify cluster
 kubectl get nodes
@@ -91,4 +105,5 @@ kubectl get pods -A
 
 1. Verify cluster health: `kubectl get nodes`
 2. Deploy workloads: `kubectl apply -f your-app.yaml`
-3. Monitor: `kubectl top nodes` (requires metrics-server)
+3. Install Istio: `./k3s.sh istio-setup`
+4. Monitor: `kubectl top nodes` (requires metrics-server)
