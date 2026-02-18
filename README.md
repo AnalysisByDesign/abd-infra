@@ -372,8 +372,12 @@ kubectl get nodes
 | `CLUSTER_TYPE` | `k3s` | Cluster type: k3s, docker, minikube | `CLUSTER_TYPE=docker` |
 | `MANAGER_COUNT` | `1` | Number of manager/server nodes | `MANAGER_COUNT=3` |
 | `WORKER_COUNT` | `2` | Number of worker/agent nodes | `WORKER_COUNT=3` |
-| `CPUS_PER_NODE` | `2` | CPU cores per node | `CPUS_PER_NODE=4` |
-| `RAM_PER_NODE` | `4G` | RAM per node | `RAM_PER_NODE=8G` |
+| `CPUS_PER_NODE` | `2` | CPU cores per node (all nodes) | `CPUS_PER_NODE=4` |
+| `RAM_PER_NODE` | `4G` | RAM per node (all nodes) | `RAM_PER_NODE=8G` |
+| `MANAGER_CPUS` | `CPUS_PER_NODE` | CPU cores for manager nodes only | `MANAGER_CPUS=2` |
+| `MANAGER_RAM` | `RAM_PER_NODE` | RAM for manager nodes only | `MANAGER_RAM=4G` |
+| `WORKER_CPUS` | `CPUS_PER_NODE` | CPU cores for worker nodes only | `WORKER_CPUS=4` |
+| `WORKER_RAM` | `RAM_PER_NODE` | RAM for worker nodes only | `WORKER_RAM=16G` |
 | `DISK_PER_NODE` | `20G` | Disk size per node | `DISK_PER_NODE=100G` |
 | `IMAGE` | `24.04` | Ubuntu image version | `IMAGE=22.04` |
 

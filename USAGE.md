@@ -153,7 +153,7 @@ CPUS_PER_NODE=4 ./scripts/multipass.sh create
 
 ### RAM_PER_NODE
 
-RAM per node (default: 6G)
+RAM per node (default: 6G). Applies to all nodes unless overridden by `MANAGER_RAM` or `WORKER_RAM`.
 
 ```bash
 # Minimal
@@ -161,6 +161,28 @@ RAM_PER_NODE=4G ./scripts/multipass.sh create
 
 # Comfortable
 RAM_PER_NODE=8G ./scripts/multipass.sh create
+```
+
+### MANAGER_CPUS / MANAGER_RAM
+
+CPU cores and RAM for manager nodes only. Falls back to `CPUS_PER_NODE` / `RAM_PER_NODE` when not set.
+
+Use this to keep control-plane nodes small while giving workers more resources.
+
+```bash
+# Small managers (control plane only), large workers (workloads)
+MANAGER_CPUS=2 MANAGER_RAM=4G \
+WORKER_CPUS=4  WORKER_RAM=16G \
+./scripts/multipass.sh create
+```
+
+### WORKER_CPUS / WORKER_RAM
+
+CPU cores and RAM for worker nodes only. Falls back to `CPUS_PER_NODE` / `RAM_PER_NODE` when not set.
+
+```bash
+# Workers with extra RAM for Ollama or other memory-heavy workloads
+WORKER_CPUS=4 WORKER_RAM=16G ./scripts/multipass.sh create
 ```
 
 ### DISK_PER_NODE
@@ -413,7 +435,7 @@ RAM_PER_NODE=4G \
 ### Standard Cluster (Development)
 
 ```bash
-# 3 managers, 2 workers, standard resources (DEFAULT)
+# 3 managers, 2 workers, uniform resources
 MANAGER_COUNT=3 \
 WORKER_COUNT=2 \
 CPUS_PER_NODE=3 \
@@ -423,10 +445,25 @@ RAM_PER_NODE=6G \
 
 **Resource Total:** 15 CPUs, 30GB RAM
 
-### High-Performance Cluster
+### HA Cluster with Split Resources (Recommended)
+
+Keeps manager nodes small (control plane only) and gives workers the RAM they need for workloads like Ollama.
 
 ```bash
-# 3 managers, 3 workers, high resources
+# 3 managers (small), 2 workers (large)
+MANAGER_COUNT=3 \
+WORKER_COUNT=2 \
+MANAGER_CPUS=2 MANAGER_RAM=4G \
+WORKER_CPUS=4  WORKER_RAM=16G \
+./scripts/multipass.sh create
+```
+
+**Resource Total:** 6 CPUs + 8 CPUs = 14 CPUs, 12GB + 32GB = 44GB RAM
+
+### High-Performance Cluster (Uniform)
+
+```bash
+# 3 managers, 3 workers, uniform high resources
 MANAGER_COUNT=3 \
 WORKER_COUNT=3 \
 CPUS_PER_NODE=4 \
