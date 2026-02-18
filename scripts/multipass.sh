@@ -35,19 +35,35 @@ esac
 create_nodes() {
     print_header "Creating Multipass Nodes (${CLUSTER_TYPE} Cluster)"
 
-    local nodes=$(get_all_names)
-
-    for node in $nodes; do
+    for node in $(get_manager_names); do
         if multipass list | grep -q "^$node "; then
             print_warning "Node $node already exists, skipping..."
             continue
         fi
 
-        print_info "Creating $node..."
+        print_info "Creating $node (${MANAGER_CPUS} CPUs, ${MANAGER_RAM} RAM)..."
         multipass launch \
             --name "$node" \
-            --cpus "$CPUS_PER_NODE" \
-            --memory "$RAM_PER_NODE" \
+            --cpus "$MANAGER_CPUS" \
+            --memory "$MANAGER_RAM" \
+            --disk "$DISK_PER_NODE" \
+            --cloud-init "$CLOUD_INIT_FILE" \
+            "$IMAGE"
+
+        print_success "Created $node"
+    done
+
+    for node in $(get_worker_names); do
+        if multipass list | grep -q "^$node "; then
+            print_warning "Node $node already exists, skipping..."
+            continue
+        fi
+
+        print_info "Creating $node (${WORKER_CPUS} CPUs, ${WORKER_RAM} RAM)..."
+        multipass launch \
+            --name "$node" \
+            --cpus "$WORKER_CPUS" \
+            --memory "$WORKER_RAM" \
             --disk "$DISK_PER_NODE" \
             --cloud-init "$CLOUD_INIT_FILE" \
             "$IMAGE"
@@ -233,8 +249,12 @@ ${GREEN}Environment Variables:${NC}
                         Options: docker, minikube, k3s
     MANAGER_COUNT       Number of manager nodes (default: 1)
     WORKER_COUNT        Number of worker nodes (default: 2)
-    CPUS_PER_NODE       CPU cores per node (default: 2)
-    RAM_PER_NODE        RAM per node (default: 4G)
+    CPUS_PER_NODE       CPU cores per node (default: 2) — applies to all nodes
+    RAM_PER_NODE        RAM per node (default: 4G) — applies to all nodes
+    MANAGER_CPUS        CPU cores for manager nodes (default: CPUS_PER_NODE)
+    MANAGER_RAM         RAM for manager nodes (default: RAM_PER_NODE)
+    WORKER_CPUS         CPU cores for worker nodes (default: CPUS_PER_NODE)
+    WORKER_RAM          RAM for worker nodes (default: RAM_PER_NODE)
     DISK_PER_NODE       Disk size per node (default: 20G)
     IMAGE               Ubuntu image to use (default: 24.04)
 
