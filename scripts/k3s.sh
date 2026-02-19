@@ -219,7 +219,7 @@ k3s_kubeconfig() {
 # Install Istio service mesh
 istio_setup() {
     local first_server="${PREFIX_WITH_SEP}manager-1"
-    local istio_version="${ISTIO_VERSION:-1.29.0}"
+    local istio_version="$ISTIO_VERSION"
 
     print_header "Installing Istio Service Mesh"
 
