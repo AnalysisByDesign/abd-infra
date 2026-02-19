@@ -12,7 +12,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=lib.sh
 source "${SCRIPT_DIR}/lib.sh"
 
-ISTIO_VERSION=${ISTIO_VERSION:-1.24.1}
+ISTIO_VERSION=${ISTIO_VERSION:-1.29.0}
 
 # Wait for K3s API server to be ready
 wait_for_k3s_api() {
@@ -219,7 +219,7 @@ k3s_kubeconfig() {
 # Install Istio service mesh
 istio_setup() {
     local first_server="${PREFIX_WITH_SEP}manager-1"
-    local istio_version="${ISTIO_VERSION:-1.24.1}"
+    local istio_version="${ISTIO_VERSION:-1.29.0}"
 
     print_header "Installing Istio Service Mesh"
 
@@ -330,7 +330,7 @@ istio_setup() {
     print_info "     EOF"
     print_info ""
     print_info "  4. Deploy a sample application:"
-    print_info "     multipass exec $first_server -- sudo k3s kubectl apply -f https://raw.githubusercontent.com/istio/istio/release-1.24/samples/bookinfo/platform/kube/bookinfo.yaml"
+    print_info "     multipass exec $first_server -- sudo k3s kubectl apply -f https://raw.githubusercontent.com/istio/istio/release-1.29/samples/bookinfo/platform/kube/bookinfo.yaml"
     print_info ""
     print_info "  5. Extend Istio with addons (optional):"
     print_info "     Kiali, Jaeger, Prometheus, Grafana"
@@ -357,7 +357,7 @@ ${GREEN}Environment Variables:${NC}
     NODE_PREFIX         Prefix for node names — must match what was used with multipass.sh
     MANAGER_COUNT       Number of manager nodes (default: 1)
     WORKER_COUNT        Number of worker nodes (default: 2)
-    ISTIO_VERSION       Istio version to install (default: 1.24.1)
+    ISTIO_VERSION       Istio version to install (default: 1.29.0)
 
 ${GREEN}Examples:${NC}
     # Full K3s + Istio workflow
