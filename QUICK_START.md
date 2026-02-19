@@ -19,14 +19,17 @@ export NODE_PREFIX=k3s CLUSTER_TYPE=k3s MANAGER_COUNT=1 WORKER_COUNT=2
 ### Option 2: Increase Resources for Better Performance (RECOMMENDED)
 
 ```bash
-export NODE_PREFIX=k3s CLUSTER_TYPE=k3s MANAGER_COUNT=1 WORKER_COUNT=2
-CPUS_PER_NODE=4 RAM_PER_NODE=8G ./multipass.sh create
+export NODE_PREFIX=k3s CLUSTER_TYPE=k3s DISK_PER_NODE=40G
+export MANAGER_COUNT=3 MANAGER_CPUS=2 MANAGER_RAM=2G
+export WORKER_COUNT=3 WORKER_CPUS=3 WORKER_RAM=8G
+./multipass.sh create
 ```
 
-## Install K3s
+## Install K3s with istio and API-Gateway
 
 ```bash
 ./k3s.sh setup
+./k3s.sh istio-setup
 ```
 
 ## Export Kubeconfig

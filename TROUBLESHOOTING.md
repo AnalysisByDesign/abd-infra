@@ -654,7 +654,8 @@ When all else fails:
 
 ```bash
 # Reset all env variables
-unset NODE_PREFIX MANAGER_COUNT WORKER_COUNT CLUSTER_TYPE CPUS_PER_NODE RAM_PER_NODE DISK_PER_NODE KUBECONFIG
+unset NODE_PREFIX CLUSTER_TYPE CPUS_PER_NODE RAM_PER_NODE DISK_PER_NODE KUBECONFIG
+unset MANAGER_COUNT WORKER_COUNT MANAGER_CPUS MANAGER_RAM WORKER_CPUS WORKER_RAM 
 
 # Nuclear option - delete ALL multipass VMs
 multipass delete --all
@@ -663,8 +664,11 @@ multipass purge
 # Verify clean state
 multipass list
 
-# Start fresh
-cd /path/to/abd-infra/scripts
+# Start fresh - set the require configuration environment variables first
+cd /path/to/abd-infra/
+export NODE_PREFIX=k3s CLUSTER_TYPE=k3s DISK_PER_NODE=40
+export MANAGER_COUNT=3 MANAGER_CPUS=2 MANAGER_RAM=2
+export WORKER_COUNT=3 WORKER_CPUS=3 WORKER_RAM=8
 ./scripts/multipass.sh create
 ./scripts/k3s.sh setup
 ```

@@ -109,6 +109,8 @@ k3s_setup() {
         print_info "Waiting for $node to initialize..."
         sleep 20
 
+        kubectl label node "$node" abd-role=manager
+
         print_success "Server $node installation complete"
     done
 
@@ -130,6 +132,8 @@ k3s_setup() {
 
         print_info "Waiting for $node to join..."
         sleep 15
+
+        kubectl label node "$node" abd-role=worker
 
         print_success "Agent $node installation complete"
     done
