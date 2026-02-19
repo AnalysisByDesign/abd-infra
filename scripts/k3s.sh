@@ -122,7 +122,7 @@ k3s_setup() {
 
         print_header "Installing K3s on $node (agent)"
 
-        if ! multipass exec "$node" -- bash -c "curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION=$K3S_VERSION K3S_URL=https://$server_ip:6443 K3S_TOKEN=$node_token sh - --kubelet-arg=image-gc-high-threshold=85 --kubelet-arg=image-gc-low-threshold=80"; then
+        if ! multipass exec "$node" -- bash -c "curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION=$K3S_VERSION K3S_URL=https://$server_ip:6443 K3S_TOKEN=$node_token sh -s - --kubelet-arg=image-gc-high-threshold=85 --kubelet-arg=image-gc-low-threshold=80"; then
             print_error "Failed to install K3s on $node"
             print_info "Continuing with remaining nodes..."
             continue
