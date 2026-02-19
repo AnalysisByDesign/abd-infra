@@ -56,7 +56,7 @@ k3s_setup() {
     # Install K3s on first server with cluster-init for HA
     print_header "Installing K3s on $first_server (first server with embedded etcd)"
 
-    if ! multipass exec "$first_server" -- bash -c "curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION=$K3S_VERSION sh -s - server --cluster-init --disable traefik"; then
+    if ! multipass exec "$first_server" -- bash -c "curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION=$K3S_VERSION sh -s - server --cluster-init --disable traefik --kubelet-arg=image-gc-high-threshold=85 --kubelet-arg=image-gc-low-threshold=80"; then
         print_error "Failed to install K3s on $first_server"
         return 1
     fi
@@ -100,7 +100,7 @@ k3s_setup() {
 
         print_header "Installing K3s on $node (additional server)"
 
-        if ! multipass exec "$node" -- bash -c "curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION=$K3S_VERSION K3S_URL=https://$server_ip:6443 K3S_TOKEN=$node_token sh -s - server --disable traefik"; then
+        if ! multipass exec "$node" -- bash -c "curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION=$K3S_VERSION K3S_URL=https://$server_ip:6443 K3S_TOKEN=$node_token sh -s - server --disable traefik --kubelet-arg=image-gc-high-threshold=85 --kubelet-arg=image-gc-low-threshold=80"; then
             print_error "Failed to install K3s on $node"
             print_info "Continuing with remaining nodes..."
             continue
@@ -122,7 +122,7 @@ k3s_setup() {
 
         print_header "Installing K3s on $node (agent)"
 
-        if ! multipass exec "$node" -- bash -c "curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION=$K3S_VERSION K3S_URL=https://$server_ip:6443 K3S_TOKEN=$node_token sh -"; then
+        if ! multipass exec "$node" -- bash -c "curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION=$K3S_VERSION K3S_URL=https://$server_ip:6443 K3S_TOKEN=$node_token sh - --kubelet-arg=image-gc-high-threshold=85 --kubelet-arg=image-gc-low-threshold=80"; then
             print_error "Failed to install K3s on $node"
             print_info "Continuing with remaining nodes..."
             continue
