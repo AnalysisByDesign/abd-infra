@@ -12,6 +12,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=lib.sh
 source "${SCRIPT_DIR}/lib.sh"
 
+K3S_VERSION=${K3S_VERSION:-v1.32.12+k3s1}
 ISTIO_VERSION=${ISTIO_VERSION:-1.29.0}
 
 # Wait for K3s API server to be ready
@@ -55,7 +56,7 @@ k3s_setup() {
     # Install K3s on first server with cluster-init for HA
     print_header "Installing K3s on $first_server (first server with embedded etcd)"
 
-    if ! multipass exec "$first_server" -- bash -c "curl -sfL https://get.k3s.io | sh -s - server --cluster-init --disable traefik"; then
+    if ! multipass exec "$first_server" -- bash -c "curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION=$K3S_VERSION sh -s - server --cluster-init --disable traefik"; then
         print_error "Failed to install K3s on $first_server"
         return 1
     fi
@@ -99,7 +100,7 @@ k3s_setup() {
 
         print_header "Installing K3s on $node (additional server)"
 
-        if ! multipass exec "$node" -- bash -c "curl -sfL https://get.k3s.io | K3S_URL=https://$server_ip:6443 K3S_TOKEN=$node_token sh -s - server --disable traefik"; then
+        if ! multipass exec "$node" -- bash -c "curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION=$K3S_VERSION K3S_URL=https://$server_ip:6443 K3S_TOKEN=$node_token sh -s - server --disable traefik"; then
             print_error "Failed to install K3s on $node"
             print_info "Continuing with remaining nodes..."
             continue
@@ -121,7 +122,7 @@ k3s_setup() {
 
         print_header "Installing K3s on $node (agent)"
 
-        if ! multipass exec "$node" -- bash -c "curl -sfL https://get.k3s.io | K3S_URL=https://$server_ip:6443 K3S_TOKEN=$node_token sh -"; then
+        if ! multipass exec "$node" -- bash -c "curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION=$K3S_VERSION K3S_URL=https://$server_ip:6443 K3S_TOKEN=$node_token sh -"; then
             print_error "Failed to install K3s on $node"
             print_info "Continuing with remaining nodes..."
             continue
@@ -357,6 +358,7 @@ ${GREEN}Environment Variables:${NC}
     NODE_PREFIX         Prefix for node names — must match what was used with multipass.sh
     MANAGER_COUNT       Number of manager nodes (default: 1)
     WORKER_COUNT        Number of worker nodes (default: 2)
+    K3S_VERSION         K3s version to install (default: v1.32.12+k3s1)
     ISTIO_VERSION       Istio version to install (default: 1.29.0)
 
 ${GREEN}Examples:${NC}
